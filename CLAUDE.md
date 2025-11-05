@@ -189,6 +189,6 @@ toon-go/
 
 ## Questions / Decisions
 
-- [ ] Use functional options pattern or config struct for options?
+- [ ] Use functional options pattern or config struct for options? 
 - [ ] Use custom types or `interface{}` for JSON values?
 - [ ] Package structure: single package or multiple packages?

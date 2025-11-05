@@ -1,36 +1,75 @@
 package toon
 
-// JsonValue represents any valid JSON value
-type JsonValue interface{}
+// Constants for list markers
+const (
+	ListItemMarker = '-'
+	ListItemPrefix = "- "
+)
 
-// JsonPrimitive represents a JSON primitive type
-type JsonPrimitive interface{}
+// Structural characters
+const (
+	Comma = ','
+	Colon = ':'
+	Space = ' '
+	Pipe  = '|'
+	Hash  = '#'
+)
 
-// JsonObject represents a JSON object
-type JsonObject map[string]JsonValue
+// Brackets and braces
+const (
+	OpenBracket  = '['
+	CloseBracket = ']'
+	OpenBrace    = '{'
+	CloseBrace   = '}'
+)
 
-// JsonArray represents a JSON array
-type JsonArray []JsonValue
+// Literals
+const (
+	NullLiteral  = "null"
+	TrueLiteral  = "true"
+	FalseLiteral = "false"
+)
 
-// EncodeOptions contains options for encoding
-type EncodeOptions struct {
-	// Indent is the number of spaces per indentation level (default: 2)
-	Indent int
-	// Delimiter is the delimiter to use for arrays (default: comma)
-	Delimiter Delimiter
-	// LengthMarker when true adds '#' prefix to array lengths (default: false)
-	LengthMarker bool
+// Escape characters
+const (
+	Backslash      = '\\'
+	DoubleQuote    = '"'
+	Newline        = '\n'
+	CarriageReturn = '\r'
+	Tab            = '\t'
+)
+
+// Delimiter type represents a delimiter character used in TOON format
+type Delimiter rune
+
+// Delimiter constants
+const (
+	DelimiterComma Delimiter = ','
+	DelimiterTab   Delimiter = '\t'
+	DelimiterPipe  Delimiter = '|'
+)
+
+// DefaultDelimiter is the default delimiter (comma)
+const DefaultDelimiter = DelimiterComma
+
+// DecodeOptions represents options for decoding TOON format
+type DecodeOptions struct {
+	// Indent is the number of spaces per indentation level
+	// Default: 2
+	Indent *int
+
+	// Strict enforces strict validation of array lengths and tabular row counts
+	// Default: true
+	Strict *bool
 }
 
-// DecodeOptions contains options for decoding
-type DecodeOptions struct {
-	// Indent is the number of spaces per indentation level (default: 2)
+// ResolvedDecodeOptions represents resolved decode options with defaults applied
+type ResolvedDecodeOptions struct {
 	Indent int
-	// Strict when true enforces strict validation (default: true)
 	Strict bool
 }
 
-// ArrayHeaderInfo contains parsed array header information
+// ArrayHeaderInfo contains information parsed from an array header line
 type ArrayHeaderInfo struct {
 	Key             *string
 	Length          int
@@ -39,7 +78,7 @@ type ArrayHeaderInfo struct {
 	HasLengthMarker bool
 }
 
-// ParsedLine represents a parsed line
+// ParsedLine represents a single parsed line from the input
 type ParsedLine struct {
 	Raw        string
 	Depth      int
@@ -55,36 +94,8 @@ type BlankLineInfo struct {
 	Depth      int
 }
 
-// ResolvedEncodeOptions returns encode options with defaults applied
-func ResolvedEncodeOptions(opts *EncodeOptions) EncodeOptions {
-	if opts == nil {
-		return EncodeOptions{
-			Indent:       2,
-			Delimiter:    DefaultDelimiter,
-			LengthMarker: false,
-		}
-	}
-	result := *opts
-	if result.Indent == 0 {
-		result.Indent = 2
-	}
-	if result.Delimiter == 0 {
-		result.Delimiter = DefaultDelimiter
-	}
-	return result
-}
-
-// ResolvedDecodeOptions returns decode options with defaults applied
-func ResolvedDecodeOptions(opts *DecodeOptions) DecodeOptions {
-	if opts == nil {
-		return DecodeOptions{
-			Indent: 2,
-			Strict: true,
-		}
-	}
-	result := *opts
-	if result.Indent == 0 {
-		result.Indent = 2
-	}
-	return result
+// ScanResult contains the result of scanning TOON input
+type ScanResult struct {
+	Lines      []ParsedLine
+	BlankLines []BlankLineInfo
 }

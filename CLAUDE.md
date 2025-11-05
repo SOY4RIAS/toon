@@ -31,31 +31,22 @@ packages/toon/src/
 ```
 
 ### Go Target Structure
+
+**Note**: Implemented as single package to avoid import cycles.
+
 ```
 toon-go/
 ├── go.mod
-├── go.sum
-├── toon.go               # Main entry point (Encode/Decode)
-├── types.go              # Type definitions
-├── constants.go          # Constants
-├── shared/
-│   ├── literal.go        # Literal parsing utilities
-│   ├── string.go         # String utilities
-│   └── validation.go     # Validation utilities
-├── decode/
-│   ├── parser.go         # Array header & primitive parsing
-│   ├── scanner.go        # Line scanning & cursor
-│   ├── decoder.go        # Main decode logic
-│   └── validation.go     # Decode validation
-├── encode/
-│   ├── encoder.go        # Main encode logic
-│   ├── normalize.go      # Value normalization
-│   ├── writer.go         # Line writing utilities
-│   └── primitives.go     # Primitive encoding
-└── tests/
-    ├── encode_test.go
-    ├── decode_test.go
-    └── integration_test.go
+├── README.md
+├── toon.go               # Main entry point (Encode/Decode) ✅
+├── types.go              # Type definitions ✅
+├── string.go             # String utilities ✅
+├── literal.go            # Literal parsing utilities ✅
+├── scanner.go            # Line scanning & cursor ✅
+├── parser.go             # Array header & primitive parsing ✅
+├── decoder.go            # Main decode logic ✅
+├── validation.go         # Validation utilities ✅
+└── example_test.go       # Tests and examples ✅
 ```
 
 ## Migration Progress
@@ -63,27 +54,26 @@ toon-go/
 | Module | TypeScript File | Go File | Status | Notes |
 |--------|----------------|---------|--------|-------|
 | **Core** | | | | |
-| Main API | `index.ts` | `toon.go` | ⬜ Not Started | Encode/Decode entry points |
-| Types | `types.ts` | `types.go` | ⬜ Not Started | Type definitions |
-| Constants | `constants.ts` | `constants.go` | ⬜ Not Started | Character & delimiter constants |
-| **Shared Utilities** | | | | |
-| Literal Utils | `shared/literal-utils.ts` | `shared/literal.go` | ⬜ Not Started | Boolean/null/number parsing |
-| String Utils | `shared/string-utils.ts` | `shared/string.go` | ⬜ Not Started | Escape/unescape, quoting |
-| Validation | `shared/validation.ts` | `shared/validation.go` | ⬜ Not Started | Common validation |
+| Main API | `index.ts` | `toon.go` | ✅ Complete | Decode entry point (Encode TODO) |
+| Types | `types.ts` | `types.go` | ✅ Complete | All type definitions |
+| Constants | `constants.ts` | `types.go` | ✅ Complete | Merged into types.go |
+| **Utilities** | | | | |
+| Literal Utils | `shared/literal-utils.ts` | `literal.go` | ✅ Complete | Boolean/null/number parsing |
+| String Utils | `shared/string-utils.ts` | `string.go` | ✅ Complete | Escape/unescape, quoting |
 | **Decoder** | | | | |
-| Parser | `decode/parser.ts` | `decode/parser.go` | ⬜ Not Started | Array header parsing, primitives |
-| Scanner | `decode/scanner.ts` | `decode/scanner.go` | ⬜ Not Started | Line scanning, cursor |
-| Decoders | `decode/decoders.ts` | `decode/decoder.go` | ⬜ Not Started | Main decode logic |
-| Validation | `decode/validation.ts` | `decode/validation.go` | ⬜ Not Started | Decode validation |
+| Parser | `decode/parser.ts` | `parser.go` | ✅ Complete | Array header parsing, primitives |
+| Scanner | `decode/scanner.ts` | `scanner.go` | ✅ Complete | Line scanning, cursor |
+| Decoders | `decode/decoders.ts` | `decoder.go` | ✅ Complete | Main decode logic |
+| Validation | `decode/validation.ts` | `validation.go` | ✅ Complete | Decode validation |
 | **Encoder** | | | | |
-| Encoders | `encode/encoders.ts` | `encode/encoder.go` | ⬜ Not Started | Main encode logic |
-| Normalize | `encode/normalize.ts` | `encode/normalize.go` | ⬜ Not Started | Value normalization |
-| Writer | `encode/writer.ts` | `encode/writer.go` | ⬜ Not Started | Line writing utilities |
-| Primitives | `encode/primitives.ts` | `encode/primitives.go` | ⬜ Not Started | Primitive encoding |
+| Encoders | `encode/encoders.ts` | - | ⬜ Not Started | Main encode logic |
+| Normalize | `encode/normalize.ts` | - | ⬜ Not Started | Value normalization |
+| Writer | `encode/writer.ts` | - | ⬜ Not Started | Line writing utilities |
+| Primitives | `encode/primitives.ts` | - | ⬜ Not Started | Primitive encoding |
 | **Tests** | | | | |
-| Encode Tests | `test/encode.test.ts` | `tests/encode_test.go` | ⬜ Not Started | Encoding tests |
-| Decode Tests | `test/decode.test.ts` | `tests/decode_test.go` | ⬜ Not Started | Decoding tests |
-| Integration | - | `tests/integration_test.go` | ⬜ Not Started | Round-trip tests |
+| Decode Tests | `test/decode.test.ts` | `example_test.go` | ✅ Complete | Basic decode tests |
+| Encode Tests | `test/encode.test.ts` | - | ⬜ Not Started | Encoding tests |
+| Integration | - | - | ⬜ Not Started | Round-trip tests |
 
 ## Legend
 - ✅ Completed
@@ -93,25 +83,25 @@ toon-go/
 
 ## Next Steps Checklist
 
-### Phase 1: Foundation (Current)
-- [ ] Set up Go module (`go.mod`)
-- [ ] Create directory structure
-- [ ] Implement `types.go` (type definitions)
-- [ ] Implement `constants.go` (constants)
+### Phase 1: Foundation ✅ COMPLETE
+- [x] Set up Go module (`go.mod`)
+- [x] Create directory structure (single package approach)
+- [x] Implement `types.go` (type definitions)
+- [x] All constants merged into `types.go`
 
-### Phase 2: Shared Utilities
-- [ ] Implement `shared/literal.go` (literal parsing)
-- [ ] Implement `shared/string.go` (string utilities)
-- [ ] Implement `shared/validation.go` (validation)
+### Phase 2: Shared Utilities ✅ COMPLETE
+- [x] Implement `literal.go` (literal parsing)
+- [x] Implement `string.go` (string utilities)
+- [x] Validation merged into decoder
 
-### Phase 3: Parser Implementation
-- [ ] Implement `decode/parser.go` (array header parsing, primitive parsing)
-- [ ] Implement `decode/scanner.go` (line scanning, cursor)
+### Phase 3: Parser Implementation ✅ COMPLETE
+- [x] Implement `parser.go` (array header parsing, primitive parsing)
+- [x] Implement `scanner.go` (line scanning, cursor)
 
-### Phase 4: Decoder
-- [ ] Implement `decode/decoder.go` (main decode logic)
-- [ ] Implement `decode/validation.go` (decode validation)
-- [ ] Create decoder tests
+### Phase 4: Decoder ✅ COMPLETE
+- [x] Implement `decoder.go` (main decode logic)
+- [x] Implement `validation.go` (decode validation)
+- [x] Create decoder tests (`example_test.go`)
 
 ### Phase 5: Encoder
 - [ ] Implement `encode/normalize.go` (value normalization)

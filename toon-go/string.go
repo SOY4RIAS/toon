@@ -1,4 +1,4 @@
-package shared
+package toon
 
 import (
 	"fmt"
@@ -8,68 +8,55 @@ import (
 // EscapeString escapes special characters in a string for encoding.
 // Handles backslashes, quotes, newlines, carriage returns, and tabs.
 func EscapeString(value string) string {
-	var result strings.Builder
-	result.Grow(len(value))
-
-	for _, ch := range value {
-		switch ch {
-		case '\\':
-			result.WriteString("\\\\")
-		case '"':
-			result.WriteString("\\\"")
-		case '\n':
-			result.WriteString("\\n")
-		case '\r':
-			result.WriteString("\\r")
-		case '\t':
-			result.WriteString("\\t")
-		default:
-			result.WriteRune(ch)
-		}
-	}
-
-	return result.String()
+	result := value
+	result = strings.ReplaceAll(result, "\\", "\\\\")
+	result = strings.ReplaceAll(result, "\"", "\\\"")
+	result = strings.ReplaceAll(result, "\n", "\\n")
+	result = strings.ReplaceAll(result, "\r", "\\r")
+	result = strings.ReplaceAll(result, "\t", "\\t")
+	return result
 }
 
 // UnescapeString unescapes a string by processing escape sequences.
 // Handles \n, \t, \r, \\, and \" escape sequences.
 func UnescapeString(value string) (string, error) {
 	var result strings.Builder
-	result.Grow(len(value))
-
-	runes := []rune(value)
 	i := 0
 
-	for i < len(runes) {
-		if runes[i] == '\\' {
-			if i+1 >= len(runes) {
+	for i < len(value) {
+		if value[i] == Backslash {
+			if i+1 >= len(value) {
 				return "", fmt.Errorf("invalid escape sequence: backslash at end of string")
 			}
 
-			next := runes[i+1]
+			next := value[i+1]
 			switch next {
 			case 'n':
-				result.WriteRune('\n')
+				result.WriteByte('\n')
 				i += 2
+				continue
 			case 't':
-				result.WriteRune('\t')
+				result.WriteByte('\t')
 				i += 2
+				continue
 			case 'r':
-				result.WriteRune('\r')
+				result.WriteByte('\r')
 				i += 2
-			case '\\':
-				result.WriteRune('\\')
+				continue
+			case Backslash:
+				result.WriteByte(Backslash)
 				i += 2
-			case '"':
-				result.WriteRune('"')
+				continue
+			case DoubleQuote:
+				result.WriteByte(DoubleQuote)
 				i += 2
+				continue
 			default:
 				return "", fmt.Errorf("invalid escape sequence: \\%c", next)
 			}
-			continue
 		}
 
-		result.WriteRune(runes[i])
+		result.WriteByte(value[i])
 		i++
 	}
 
@@ -78,58 +65,43 @@ func UnescapeString(value string) (string, error) {
 
 // FindClosingQuote finds the index of the closing double quote in a string,
 // accounting for escape sequences.
-//
-// Parameters:
-//   - content: The string to search in
-//   - start: The index of the opening quote
-//
 // Returns the index of the closing quote, or -1 if not found.
 func FindClosingQuote(content string, start int) int {
-	runes := []rune(content)
 	i := start + 1
-
-	for i < len(runes) {
-		if runes[i] == '\\' && i+1 < len(runes) {
+	for i < len(content) {
+		if content[i] == Backslash && i+1 < len(content) {
 			// Skip escaped character
 			i += 2
 			continue
 		}
-		if runes[i] == '"' {
+		if content[i] == DoubleQuote {
 			return i
 		}
 		i++
 	}
-
 	return -1 // Not found
 }
 
 // FindUnquotedChar finds the index of a specific character outside of quoted sections.
-//
-// Parameters:
-//   - content: The string to search in
-//   - char: The character to look for
-//   - start: Starting index (defaults to 0)
-//
 // Returns the index of the character, or -1 if not found outside quotes.
-func FindUnquotedChar(content string, char rune, start int) int {
-	runes := []rune(content)
+func FindUnquotedChar(content string, char byte, start int) int {
 	inQuotes := false
 	i := start
 
-	for i < len(runes) {
-		if runes[i] == '\\' && i+1 < len(runes) && inQuotes {
+	for i < len(content) {
+		if content[i] == Backslash && i+1 < len(content) && inQuotes {
 			// Skip escaped character
 			i += 2
 			continue
 		}
 
-		if runes[i] == '"' {
+		if content[i] == DoubleQuote {
 			inQuotes = !inQuotes
 			i++
 			continue
 		}
 
-		if runes[i] == char && !inQuotes {
+		if content[i] == char && !inQuotes {
 			return i
 		}
 

@@ -86,21 +86,23 @@ go/
 | Decoders | ✅ | decode_decoders.go | Value decoding logic |
 | Validation | ✅ | decode_validation.go | Strict mode validation |
 
-### Phase 4: Encoder ⏳
+### Phase 4: Encoder ✅
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
-| Normalize | ⏳ | encode/normalize.go | Value normalization (Date, BigInt, etc) |
-| Primitives | ⏳ | encode/primitives.go | Primitive encoding |
-| Writer | ⏳ | encode/writer.go | Output writing with indentation |
-| Encoders | ⏳ | encode/encoders.go | Main encoding logic |
+| Normalize | ✅ | go/encode/normalize.go | Value normalization (Date, BigInt, etc) |
+| Primitives | ✅ | go/encode/primitives.go | Primitive encoding |
+| Writer | ✅ | go/encode/writer.go | Output writing with indentation |
+| Encoders | ✅ | go/encode/encoders.go | Main encoding logic |
+| Validation | ✅ | go/encode/validation.go | Quoting and key validation |
 
 ### Phase 5: Testing ⏳
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
-| Basic tests | ✅ | toon_test.go | Basic decode tests passing |
-| Unit tests | ⏳ | *_test.go | More comprehensive tests needed |
+| Decode tests | ✅ | go/toon_test.go | Basic decode tests passing |
+| Encode tests | ✅ | go/encode_test.go | Basic encode tests passing |
+| Round-trip tests | ✅ | go/encode_test.go | Encode/decode round-trip tests passing |
 | Conformance tests | ⏳ | - | Use spec conformance tests |
 
 ### Phase 6: CLI (Optional) ⏳
@@ -116,7 +118,8 @@ go/
 - [x] Implement shared utilities (strings, literals)
 - [x] Implement decoder (scanner → parser → decoders → validation)
 - [x] Write basic decoder tests (all passing)
-- [ ] Implement encoder (normalize → primitives → writer → encoders)
+- [x] Implement encoder (normalize → primitives → writer → encoders)
+- [x] Write basic encoder tests (all passing)
 - [ ] Port comprehensive unit tests from TypeScript
 - [ ] Run conformance tests from spec repository
 - [ ] Add CLI tool (optional)

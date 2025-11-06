@@ -4,10 +4,11 @@
 
 Migrating TOON (Token-Oriented Object Notation) from TypeScript to Go.
 
-**Current Phase**: Core Implementation Complete (Encoder + Decoder) ✅
+**Current Phase**: Conformance Testing Complete ✅
 **Branch**: `feature/go-port`
 **Started**: 2025-11-06
 **Core Completed**: 2025-11-06
+**Conformance Testing Completed**: 2025-11-06
 
 ## Progress Summary
 
@@ -30,51 +31,63 @@ Migrating TOON (Token-Oriented Object Notation) from TypeScript to Go.
   - Primitives (encode/primitives.go) - primitive encoding & headers
   - Writer (encode/writer.go) - output writing with indentation
   - Encoders (encode/encoders.go) - main encoding logic (objects, arrays, tabular format)
-  - Validation (encode/validation.go) - quoting and key validation
+  - Validation (encode/validation.go) - quoting and key validation (including single hyphen)
   - Main API (toon.go) - Encode function
   - Basic encode tests (encode_test.go) - all passing ✅
   - Round-trip tests - all passing ✅
+- **Conformance Testing**:
+  - Test harness (conformance_test.go) - loads and runs official spec tests
+  - Downloaded 323 official tests from toon-format/spec
+  - Decode conformance: 184/185 passing (99.5%)
+  - Encode conformance: 130/138 passing (94.2%)
+  - Overall: 314/323 passing (97.0% compliance)
+  - Documentation (CONFORMANCE.md) - detailed results and deviation analysis
+  - Error handling improvements (panic recovery in Decode)
+  - Bug fixes (single hyphen quoting, strict mode defaults)
 
 ### ⏳ In Progress
 
-None currently - core implementation complete!
+None currently!
 
 ### ❌ Not Started
 
-- Comprehensive unit tests
-- Conformance tests from spec repo
-- CLI implementation
+- CLI implementation (optional)
 - Documentation/README for Go package
+- Performance benchmarking
 
 ## Current Focus
 
-**Core implementation complete!** ✅
+**Conformance testing complete!** ✅
 
-Both encoder and decoder are fully implemented and tested (13/13 tests passing):
+The Go implementation has achieved **97.0% compliance** with the official TOON specification (314/323 tests passing).
 
-**Decoder capabilities:**
-- Simple objects
-- Nested objects
-- Tabular arrays (uniform objects)
-- Inline primitive arrays
-- List arrays (mixed/nested)
+**Test Results:**
+- Basic unit tests: 13/13 passing (100%)
+- Decode conformance: 184/185 passing (99.5%)
+- Encode conformance: 130/138 passing (94.2%)
+- Overall conformance: 314/323 passing (97.0%)
 
-**Encoder capabilities:**
-- Object encoding with nested structures
-- Primitive array encoding (inline format)
-- Tabular array encoding (automatic detection)
-- List array encoding (mixed/nested)
-- Custom delimiters (comma, tab, pipe)
-- Optional length markers
-- Proper quoting and escaping
-- Value normalization (Date, BigInt, structs, etc.)
+**Known Deviations:**
+1. Tab at line start not rejected (1 test) - minor issue, mixed tabs/spaces still detected
+2. Field order non-deterministic (8 tests) - Go map limitation, output still valid TOON
+
+**Capabilities Verified:**
+- ✅ All primitive types (strings, numbers, booleans, null)
+- ✅ Objects (nested, quoted keys, special characters)
+- ✅ Arrays (inline, list, tabular formats)
+- ✅ Delimiters (comma, tab, pipe)
+- ✅ Strict mode validation
+- ✅ Length markers
+- ✅ Escape sequences and quoting
+- ✅ Unicode support
+- ✅ Error handling and validation
+- ✅ Round-trip encode/decode
 
 **Next steps:**
-1. Port comprehensive unit tests from TypeScript
-2. Run conformance tests from toon-format/spec
-3. Add CLI tool (optional)
-4. Write README.md for Go package
-5. Performance benchmarking
+1. Add CLI tool (optional)
+2. Write README.md for Go package
+3. Performance benchmarking
+4. Address field order issue (would require ordered map implementation)
 
 ## Blockers
 

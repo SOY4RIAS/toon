@@ -82,6 +82,11 @@ func IsSafeUnquoted(value string, delimiter rune) bool {
 		return false
 	}
 
+	// Check for single hyphen (also looks like a list marker)
+	if value == "-" {
+		return false
+	}
+
 	return true
 }
 

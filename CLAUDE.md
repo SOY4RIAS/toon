@@ -26,8 +26,8 @@ The TypeScript implementation consists of:
 |-----------|----------------|---------|--------|-------|
 | **Scanner** | `src/decode/scanner.ts` | `go/decode/scanner.go` | ✅ Complete | Line scanning and cursor |
 | **Parser** | `src/decode/parser.ts` | `go/decode/parser.go` | ✅ Complete | Array headers, delimited values, primitives |
-| **Decoders** | `src/decode/decoders.ts` | `go/decode/decoders.go` | ⬜ Not Started | Value decoding logic |
-| **Validation** | `src/decode/validation.ts` | `go/decode/validation.go` | ⬜ Not Started | Strict mode validation |
+| **Decoders** | `src/decode/decoders.ts` | `go/decode/decoders.go` | ✅ Complete | Value decoding logic |
+| **Validation** | `src/decode/validation.ts` | `go/decode/validation.go` | ✅ Complete | Strict mode validation |
 
 ### Encode (Serializer)
 
@@ -68,12 +68,12 @@ The TypeScript implementation consists of:
 - [x] Implement shared utilities (string-utils, literal-utils)
 - [x] Set up basic testing infrastructure
 
-### Phase 2: Parser (Decode) - Current
+### Phase 2: Parser (Decode) ✅ Complete
 - [x] Implement scanner (line parsing, cursor)
 - [x] Implement parser (array headers, delimited values, primitives)
-- [ ] Implement decoders (value decoding logic)
-- [ ] Implement validation
-- [ ] Port decode tests
+- [x] Implement decoders (value decoding logic)
+- [x] Implement validation
+- [x] Add comprehensive decode tests (all passing)
 
 ### Phase 3: Serializer (Encode)
 - [ ] Implement value normalization

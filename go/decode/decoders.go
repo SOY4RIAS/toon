@@ -293,11 +293,163 @@ func decodeTabularArray(
 	return result, nil
 }
 
+// decodeListArray decodes a list format array like:
+//   items[3]:
+//     - item1
+//     - item2
+//     - item3
 func decodeListArray(
 	header *toon.ArrayHeaderInfo,
 	cursor *LineCursor,
 	baseDepth int,
 	options *toon.DecodeOptions,
 ) (toon.JsonArray, error) {
-	return nil, fmt.Errorf("decodeListArray not yet implemented")
+	items := make(toon.JsonArray, 0, header.Length)
+	itemDepth := baseDepth + 1
+
+	// Track line range for blank line validation
+	var startLine, endLine int
+
+	for !cursor.AtEnd() && len(items) < header.Length {
+		line := cursor.Peek()
+		if line == nil || line.Depth < itemDepth {
+			break
+		}
+
+		// Check for list item (with or without space after hyphen)
+		isListItem := strings.HasPrefix(line.Content, toon.ListItemPrefix) || line.Content == "-"
+
+		if line.Depth == itemDepth && isListItem {
+			// Track first and last item line numbers
+			if len(items) == 0 {
+				startLine = line.LineNumber
+			}
+			endLine = line.LineNumber
+
+			item, err := decodeListItem(cursor, itemDepth, options)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, item)
+
+			// Update endLine to the current cursor position (after item was decoded)
+			currentLine := cursor.Current()
+			if currentLine != nil {
+				endLine = currentLine.LineNumber
+			}
+		} else {
+			break
+		}
+	}
+
+	if err := AssertExpectedCount(len(items), header.Length, "list array items", options); err != nil {
+		return nil, err
+	}
+
+	// In strict mode, check for blank lines inside the array
+	if options.Strict && len(items) > 0 {
+		if err := ValidateNoBlankLinesInRange(
+			startLine,
+			endLine,
+			cursor.GetBlankLines(),
+			options.Strict,
+			"list array",
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	// In strict mode, check for extra items
+	if options.Strict {
+		if err := ValidateNoExtraListItems(cursor, itemDepth, header.Length); err != nil {
+			return nil, err
+		}
+	}
+
+	return items, nil
+}
+
+// decodeListItem decodes a single list item starting with "- "
+func decodeListItem(
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (toon.JsonValue, error) {
+	line := cursor.Next()
+	if line == nil {
+		return nil, fmt.Errorf("expected list item")
+	}
+
+	// Empty list item should be an empty object
+	if line.Content == "-" {
+		return make(toon.JsonObject), nil
+	}
+
+	var afterHyphen string
+	if strings.HasPrefix(line.Content, toon.ListItemPrefix) {
+		afterHyphen = line.Content[len(toon.ListItemPrefix):]
+	} else {
+		return nil, fmt.Errorf("expected list item to start with \"%s\"", toon.ListItemPrefix)
+	}
+
+	// Empty content after list item should also be an empty object
+	if strings.TrimSpace(afterHyphen) == "" {
+		return make(toon.JsonObject), nil
+	}
+
+	// Check for array header after hyphen
+	if IsArrayHeaderAfterHyphen(afterHyphen) {
+		arrayHeader, inlineValues, err := ParseArrayHeaderLine(afterHyphen, toon.DefaultDelimiter)
+		if err != nil {
+			return nil, err
+		}
+		if arrayHeader != nil {
+			return decodeArrayFromHeader(arrayHeader, inlineValues, cursor, baseDepth, options)
+		}
+	}
+
+	// Check for object first field after hyphen
+	if IsObjectFirstFieldAfterHyphen(afterHyphen) {
+		return decodeObjectFromListItem(line, cursor, baseDepth, options)
+	}
+
+	// Primitive value
+	return ParsePrimitiveToken(afterHyphen)
+}
+
+// decodeObjectFromListItem decodes an object that starts in a list item
+func decodeObjectFromListItem(
+	firstLine *toon.ParsedLine,
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (toon.JsonObject, error) {
+	afterHyphen := firstLine.Content[len(toon.ListItemPrefix):]
+	key, value, followDepth, err := decodeKeyValue(afterHyphen, cursor, baseDepth, options)
+	if err != nil {
+		return nil, err
+	}
+
+	obj := make(toon.JsonObject)
+	obj[key] = value
+
+	// Read subsequent fields
+	for !cursor.AtEnd() {
+		line := cursor.Peek()
+		if line == nil || line.Depth < followDepth {
+			break
+		}
+
+		if line.Depth == followDepth && !strings.HasPrefix(line.Content, toon.ListItemPrefix) {
+			k, v, keyErr := decodeKeyValuePair(line, cursor, followDepth, options)
+			if keyErr != nil {
+				return nil, keyErr
+			}
+			obj[k] = v
+		} else {
+			break
+		}
+	}
+
+	return obj, nil
 }

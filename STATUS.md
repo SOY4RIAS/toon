@@ -1,69 +1,54 @@
-# TOON Go Migration Status
+# Go Migration Status
 
-High-level overview of the Go port progress.
+## Overview
 
-## Overall Progress
+Migrating TOON (Token-Oriented Object Notation) from TypeScript to Go.
 
-**Phase:** Parser Implementation (Decoders)
-**Started:** 2025-11-05
-**Current Status:** 🚧 Foundation complete, implementing decoders
+**Current Phase**: Decoder Complete, Encoder Next
+**Branch**: `claude/go-migration-parser-011CUqhpS7DatVmPCe2tsdQX`
+**Started**: 2025-11-06
 
-## Completion Summary
+## Progress Summary
 
-| Category | Progress | Status |
-|----------|----------|--------|
-| **Foundation** | 100% | ✅ Complete |
-| **Parser (Decode)** | 50% | 🚧 In Progress |
-| **Serializer (Encode)** | 0% | ⬜ Not Started |
-| **API & CLI** | 0% | ⬜ Not Started |
-| **Tests** | 25% | 🚧 In Progress |
-| **Overall** | 30% | 🚧 In Progress |
+### ✅ Completed
 
-## Recent Activity
+- Project structure planning
+- Documentation setup (CLAUDE.md, STATUS.md)
+- Go module initialization (go.mod)
+- Constants and types (constants.go, types.go)
+- Shared utilities (shared/strings.go, shared/literals.go)
+- **Complete Decoder implementation**:
+  - Scanner (decode_scanner.go) - line tokenization & indentation
+  - Parser (decode_parser.go) - header parsing & delimited values
+  - Decoders (decode_decoders.go) - objects, arrays (tabular & list), primitives
+  - Validation (decode_validation.go) - strict mode checks
+- Main API (toon.go) - Decode function
+- Basic tests (toon_test.go) - all passing ✅
 
-### 2025-11-05 (Latest)
-- ✅ **Foundation Phase Complete**
-  - Created Go module structure (`go.mod`)
-  - Implemented core types and constants
-  - Implemented shared string utilities (escaping, quote handling)
-  - Implemented shared literal utilities (boolean, null, number parsing)
-- ✅ **Parser Components Complete**
-  - Implemented scanner (line parsing, indentation tracking, cursor navigation)
-  - Implemented parser (array headers, delimited values, primitive parsing)
-  - Added comprehensive unit tests for parser (all passing)
-- 📝 **Documentation**
-  - Created migration tracking documents (CLAUDE.md, STATUS.md)
-  - Analyzed TypeScript implementation structure
+### ⏳ In Progress
 
-## Next Immediate Tasks
+- Encoder implementation (next priority)
 
-1. ✅ ~~Initialize Go module structure~~
-2. ✅ ~~Implement core types and constants~~
-3. ✅ ~~Implement shared string utilities~~
-4. ✅ ~~Begin parser implementation (scanner, parser modules)~~
-5. **Next:** Implement decoders module (value decoding logic)
-6. **Next:** Implement validation module
-7. **Next:** Port comprehensive decode tests
+### ❌ Not Started
 
-## Key Components to Migrate
+- Comprehensive unit tests
+- Conformance tests from spec repo
+- CLI implementation
+- Documentation/README for Go package
 
-### High Priority (Foundation) - ✅ Complete
-1. ✅ Types and constants definition
-2. ✅ String utilities (quote handling, escaping, unescaping)
-3. ✅ Literal utilities (boolean, number, null parsing)
-4. ✅ Scanner (line parsing with indentation tracking)
-5. ✅ Parser (array headers, delimited values, primitives)
+## Current Focus
 
-### Medium Priority (Parser)
-5. ⬜ Parser (array header parsing, delimited value parsing)
-6. ⬜ Decoders (main decoding logic)
-7. ⬜ Validation (strict mode)
+**Decoder is complete and tested!** All basic decode tests passing:
+- Simple objects
+- Nested objects
+- Tabular arrays
+- Inline primitive arrays
+- List arrays
 
-### Lower Priority (Encoder + CLI)
-8. ⬜ Normalize (value normalization)
-9. ⬜ Encoders (main encoding logic)
-10. ⬜ Writer (output formatting)
-11. ⬜ CLI tool
+Next steps:
+1. Implement encoder (normalize → primitives → writer → encoders)
+2. Port more comprehensive tests from TypeScript
+3. Run conformance tests from toon-format/spec
 
 ## Blockers
 
@@ -73,9 +58,8 @@ None currently.
 
 - Following TOON spec v1.4
 - Using TypeScript implementation as reference
-- Will validate against conformance tests from spec repo
-- Aiming for idiomatic Go while maintaining spec compliance
+- Will validate against conformance tests from toon-format/spec
 
 ---
 
-Last Updated: 2025-11-05
+Last updated: 2025-11-06

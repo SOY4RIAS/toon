@@ -1,155 +1,156 @@
-# Go Migration Progress
+# TOON Go Migration - Progress Tracker
 
-This document tracks the progress of migrating the TOON TypeScript implementation to Go.
+This document tracks the progress of migrating the TOON (Token-Oriented Object Notation) library from TypeScript to Go.
 
 ## Project Overview
 
-TOON (Token-Oriented Object Notation) is a compact, human-readable serialization format designed for passing structured data to Large Language Models with significantly reduced token usage.
+**Goal**: Create a Go implementation of the TOON format parser/encoder that matches the TypeScript reference implementation.
 
-**TypeScript Source:** `packages/toon/src/`
-**Go Target:** `go/`
+**Repository**: `toon-format/toon`
+**Branch**: `claude/go-migration-parser-011CUqhpS7DatVmPCe2tsdQX`
+**Spec Version**: v1.4 ([spec repository](https://github.com/toon-format/spec))
 
-## Architecture
+## TypeScript Source Structure
 
-The TypeScript implementation consists of:
+```
+packages/toon/src/
+├── index.ts              # Main entry point (encode/decode)
+├── types.ts              # Type definitions
+├── constants.ts          # Constants and delimiters
+├── shared/               # Shared utilities
+│   ├── string-utils.ts   # String manipulation
+│   ├── literal-utils.ts  # Literal parsing
+│   └── validation.ts     # Validation helpers
+├── encode/               # Encoder implementation
+│   ├── primitives.ts     # Primitive encoding
+│   ├── writer.ts         # Output writer
+│   ├── normalize.ts      # Value normalization
+│   └── encoders.ts       # Main encoding logic
+└── decode/               # Decoder implementation
+    ├── decoders.ts       # Main decoding logic
+    ├── scanner.ts        # Line scanning/tokenization
+    ├── parser.ts         # Parsing logic
+    └── validation.ts     # Decode validation
+```
 
-### Core Modules
+## Go Project Structure
 
-| Module | TypeScript Path | Go Path | Status | Notes |
-|--------|----------------|---------|--------|-------|
-| **Types & Constants** | `src/types.ts`, `src/constants.ts` | `go/types.go`, `go/constants.go` | ✅ Complete | Core type definitions and constants |
-| **Main API** | `src/index.ts` | `go/toon.go` | ⬜ Not Started | Public encode/decode API |
+```
+go/
+├── go.mod
+├── go.sum
+├── toon.go               # Main entry point (Encode/Decode)
+├── types.go              # Type definitions
+├── constants.go          # Constants and delimiters
+├── shared/               # Shared utilities
+│   ├── strings.go        # String manipulation
+│   ├── literals.go       # Literal parsing
+│   └── validation.go     # Validation helpers
+├── encode/               # Encoder implementation
+│   ├── primitives.go     # Primitive encoding
+│   ├── writer.go         # Output writer
+│   ├── normalize.go      # Value normalization
+│   └── encoders.go       # Main encoding logic
+├── decode/               # Decoder implementation
+│   ├── decoders.go       # Main decoding logic
+│   ├── scanner.go        # Line scanning/tokenization
+│   ├── parser.go         # Parsing logic
+│   └── validation.go     # Decode validation
+└── toon_test.go          # Main tests
+```
 
-### Decode (Parser)
+## Migration Progress
 
-| Component | TypeScript Path | Go Path | Status | Notes |
-|-----------|----------------|---------|--------|-------|
-| **Scanner** | `src/decode/scanner.ts` | `go/decode/scanner.go` | ✅ Complete | Line scanning and cursor |
-| **Parser** | `src/decode/parser.ts` | `go/decode/parser.go` | ✅ Complete | Array headers, delimited values, primitives |
-| **Decoders** | `src/decode/decoders.ts` | `go/decode/decoders.go` | ✅ Complete | Value decoding logic |
-| **Validation** | `src/decode/validation.ts` | `go/decode/validation.go` | ✅ Complete | Strict mode validation |
+### Phase 1: Foundation ✅
 
-### Encode (Serializer)
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| Project setup | ✅ | go.mod | Initialize Go module |
+| Constants | ✅ | constants.go | Port delimiters, markers, literals |
+| Types | ✅ | types.go | Define Go types for options, parsing |
+| Main API | ✅ | toon.go | Decode function implemented |
 
-| Component | TypeScript Path | Go Path | Status | Notes |
-|-----------|----------------|---------|--------|-------|
-| **Normalize** | `src/encode/normalize.ts` | `go/encode/normalize.go` | ⬜ Not Started | Value normalization |
-| **Encoders** | `src/encode/encoders.ts` | `go/encode/encoders.go` | ⬜ Not Started | Value encoding logic |
-| **Writer** | `src/encode/writer.ts` | `go/encode/writer.go` | ⬜ Not Started | Output formatting |
-| **Primitives** | `src/encode/primitives.ts` | `go/encode/primitives.go` | ⬜ Not Started | Primitive value handling |
+### Phase 2: Shared Utilities ✅
 
-### Shared Utilities
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| String utils | ✅ | shared/strings.go | Quoting, escaping, unquoting |
+| Literal utils | ✅ | shared/literals.go | Parse bool, number, null |
 
-| Component | TypeScript Path | Go Path | Status | Notes |
-|-----------|----------------|---------|--------|-------|
-| **String Utils** | `src/shared/string-utils.ts` | `go/shared/string_utils.go` | ✅ Complete | Quote handling, escaping |
-| **Literal Utils** | `src/shared/literal-utils.ts` | `go/shared/literal_utils.go` | ✅ Complete | Boolean, null, number parsing |
-| **Validation** | `src/shared/validation.ts` | `go/shared/validation.go` | ⬜ Not Started | Common validation |
+### Phase 3: Decoder ✅
 
-### Testing
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| Scanner | ✅ | decode_scanner.go | Line tokenization, indentation |
+| Parser | ✅ | decode_parser.go | Header parsing, structural analysis |
+| Decoders | ✅ | decode_decoders.go | Value decoding logic |
+| Validation | ✅ | decode_validation.go | Strict mode validation |
 
-| Component | TypeScript Path | Go Path | Status | Notes |
-|-----------|----------------|---------|--------|-------|
-| **Encode Tests** | `test/encode.test.ts` | `go/encode_test.go` | ⬜ Not Started | Encoding tests |
-| **Decode Tests** | `test/decode.test.ts` | `go/decode_test.go` | ⬜ Not Started | Decoding tests |
-| **Normalization Tests** | `test/normalization.test.ts` | `go/normalization_test.go` | ⬜ Not Started | Normalization tests |
+### Phase 4: Encoder ⏳
 
-### CLI
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| Normalize | ⏳ | encode/normalize.go | Value normalization (Date, BigInt, etc) |
+| Primitives | ⏳ | encode/primitives.go | Primitive encoding |
+| Writer | ⏳ | encode/writer.go | Output writing with indentation |
+| Encoders | ⏳ | encode/encoders.go | Main encoding logic |
 
-| Component | TypeScript Path | Go Path | Status | Notes |
-|-----------|----------------|---------|--------|-------|
-| **CLI** | `packages/cli/` | `go/cmd/toon/` | ⬜ Not Started | Command-line interface |
+### Phase 5: Testing ⏳
+
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| Basic tests | ✅ | toon_test.go | Basic decode tests passing |
+| Unit tests | ⏳ | *_test.go | More comprehensive tests needed |
+| Conformance tests | ⏳ | - | Use spec conformance tests |
+
+### Phase 6: CLI (Optional) ⏳
+
+| Component | Status | File | Notes |
+|-----------|--------|------|-------|
+| CLI tool | ⏳ | cmd/toon/main.go | Command-line interface |
 
 ## Next Steps Checklist
 
-### Phase 1: Foundation ✅ Complete
-- [x] Create Go module structure (`go.mod`)
-- [x] Implement core types and constants
-- [x] Implement shared utilities (string-utils, literal-utils)
-- [x] Set up basic testing infrastructure
+- [x] Initialize Go module and project structure
+- [x] Implement constants.go and types.go
+- [x] Implement shared utilities (strings, literals)
+- [x] Implement decoder (scanner → parser → decoders → validation)
+- [x] Write basic decoder tests (all passing)
+- [ ] Implement encoder (normalize → primitives → writer → encoders)
+- [ ] Port comprehensive unit tests from TypeScript
+- [ ] Run conformance tests from spec repository
+- [ ] Add CLI tool (optional)
+- [ ] Documentation and README for Go package
+- [ ] Benchmark against TypeScript implementation
 
-### Phase 2: Parser (Decode) ✅ Complete
-- [x] Implement scanner (line parsing, cursor)
-- [x] Implement parser (array headers, delimited values, primitives)
-- [x] Implement decoders (value decoding logic)
-- [x] Implement validation
-- [x] Add comprehensive decode tests (all passing)
+## Key Implementation Notes
 
-### Phase 3: Serializer (Encode)
-- [ ] Implement value normalization
-- [ ] Implement encoders
-- [ ] Implement writer
-- [ ] Implement primitive handling
-- [ ] Port encode tests
+### Go-Specific Considerations
 
-### Phase 4: API & CLI
-- [ ] Implement public encode/decode API
-- [ ] Implement CLI
-- [ ] Integration testing
-- [ ] Documentation
+1. **Type System**: Go doesn't have union types like TypeScript. Use `interface{}` or `any` (Go 1.18+) for JSON values.
+2. **Error Handling**: Return errors explicitly instead of throwing exceptions.
+3. **JSON Compatibility**: Use `encoding/json` standard library for JSON value handling.
+4. **String Builder**: Use `strings.Builder` for efficient string concatenation.
+5. **Runes vs Bytes**: Be careful with Unicode handling (use runes for character iteration).
 
-## Current Focus
+### Testing Strategy
 
-**Decoder Implementation** - Implementing the decode/decoders module to complete the parsing functionality
-
-## Recent Progress (2025-11-05)
-
-- ✅ Created Go module structure
-- ✅ Implemented core types and constants
-- ✅ Implemented shared string utilities (escaping, unescaping, quote finding)
-- ✅ Implemented shared literal utilities (boolean, null, number detection)
-- ✅ Implemented scanner module (line parsing, cursor navigation)
-- ✅ Implemented parser module (array headers, delimited values, primitives)
-- ✅ Added comprehensive tests for parser functionality (all passing)
-
-## Key Differences: TypeScript vs Go
-
-### Type System
-- TypeScript uses union types (`JsonValue = JsonPrimitive | JsonObject | JsonArray`)
-- Go will use interfaces and type switches
-- Consider using `interface{}` or `any` for JsonValue
-
-### String Handling
-- TypeScript: strings are immutable, use string methods
-- Go: strings are immutable, but use bytes for manipulation
-- Go rune iteration for unicode handling
-
-### Error Handling
-- TypeScript: throw exceptions
-- Go: return errors as values
-
-### Options Pattern
-- TypeScript: optional parameters with defaults
-- Go: functional options or config structs
+1. Port existing TypeScript test cases to Go
+2. Use table-driven tests (idiomatic Go pattern)
+3. Validate against conformance tests from [toon-format/spec](https://github.com/toon-format/spec/tree/main/tests)
+4. Compare output with TypeScript implementation for the same inputs
 
 ## References
 
-- [TOON Specification v1.4](https://github.com/toon-format/spec)
-- [TypeScript Implementation](packages/toon/)
+- [TOON Specification v1.4](https://github.com/toon-format/spec/blob/main/SPEC.md)
+- [TypeScript Reference Implementation](https://github.com/toon-format/toon)
 - [Conformance Tests](https://github.com/toon-format/spec/tree/main/tests)
+- [Other Go Implementation](https://github.com/alpkeskin/gotoon) (community, for reference)
 
-## Status Legend
+## Questions / Issues
 
-- ✅ Complete
-- 🚧 In Progress
-- ⬜ Not Started
-- ❌ Blocked
-
-## Files Created
-
-### Core
-- `go/types.go` - Type definitions
-- `go/constants.go` - Constants and delimiters
-
-### Shared Utilities
-- `go/shared/string_utils.go` - String escaping and quote handling
-- `go/shared/literal_utils.go` - Literal value parsing
-
-### Decode (Parser)
-- `go/decode/scanner.go` - Line scanning and cursor
-- `go/decode/parser.go` - Array header and value parsing
-- `go/decode/parser_test.go` - Parser tests (all passing)
+*(Track any questions or blockers here)*
 
 ---
 
-Last Updated: 2025-11-05
+Last updated: 2025-11-06

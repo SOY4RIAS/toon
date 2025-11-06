@@ -1,49 +1,63 @@
 package toon
 
-// Character constants
+// List markers
 const (
-	Space        = ' '
-	Tab          = '\t'
-	Backslash    = '\\'
-	DoubleQuote  = '"'
-	Colon        = ':'
-	Comma        = ','
-	Pipe         = '|'
-	Hash         = '#'
-	Hyphen       = '-'
+	ListItemMarker = '-'
+	ListItemPrefix = "- "
+)
+
+// Structural characters
+const (
+	Comma = ','
+	Colon = ':'
+	Space = ' '
+	Pipe  = '|'
+	Hash  = '#'
+)
+
+// Brackets and braces
+const (
 	OpenBracket  = '['
 	CloseBracket = ']'
 	OpenBrace    = '{'
 	CloseBrace   = '}'
 )
 
-// List item markers
+// Literals
 const (
-	ListItemMarker = '-'
-	ListItemPrefix = "- "
-)
-
-// Literal constants
-const (
+	NullLiteral  = "null"
 	TrueLiteral  = "true"
 	FalseLiteral = "false"
-	NullLiteral  = "null"
 )
 
-// Delimiter type represents array value delimiters
+// Escape characters
+const (
+	Backslash       = '\\'
+	DoubleQuote     = '"'
+	Newline         = '\n'
+	CarriageReturn  = '\r'
+	Tab             = '\t'
+)
+
+// Delimiter is a type for array/table delimiters
 type Delimiter rune
 
-// Available delimiters
+// Delimiter constants
 const (
-	DelimiterComma Delimiter = ','
-	DelimiterTab   Delimiter = '\t'
-	DelimiterPipe  Delimiter = '|'
+	DelimiterComma Delimiter = Comma
+	DelimiterTab   Delimiter = Tab
+	DelimiterPipe  Delimiter = Pipe
 )
 
-// DefaultDelimiter is the default delimiter for arrays
+// DefaultDelimiter is the default delimiter (comma)
 const DefaultDelimiter = DelimiterComma
 
-// IsValidDelimiter checks if a delimiter is valid
-func IsValidDelimiter(d Delimiter) bool {
-	return d == DelimiterComma || d == DelimiterTab || d == DelimiterPipe
+// DelimiterToString converts a Delimiter to its string representation
+func DelimiterToString(d Delimiter) string {
+	switch d {
+	case DelimiterTab:
+		return "\\t"
+	default:
+		return string(d)
+	}
 }

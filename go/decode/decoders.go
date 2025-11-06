@@ -150,7 +150,7 @@ func decodeKeyValuePair(
 	return key, value, err
 }
 
-// Placeholder - will be implemented in next commit
+// decodeArrayFromHeader dispatches to the appropriate array decoder based on header info.
 func decodeArrayFromHeader(
 	header *toon.ArrayHeaderInfo,
 	inlineValues string,
@@ -158,5 +158,71 @@ func decodeArrayFromHeader(
 	baseDepth int,
 	options *toon.DecodeOptions,
 ) (toon.JsonArray, error) {
-	return nil, fmt.Errorf("decodeArrayFromHeader not yet implemented")
+	// Inline primitive array
+	if inlineValues != "" {
+		return decodeInlinePrimitiveArray(header, inlineValues, options)
+	}
+
+	// Tabular array
+	if header.Fields != nil && len(header.Fields) > 0 {
+		return decodeTabularArray(header, cursor, baseDepth, options)
+	}
+
+	// List array
+	return decodeListArray(header, cursor, baseDepth, options)
+}
+
+// decodeInlinePrimitiveArray decodes an inline array like [3]: a,b,c
+func decodeInlinePrimitiveArray(
+	header *toon.ArrayHeaderInfo,
+	inlineValues string,
+	options *toon.DecodeOptions,
+) (toon.JsonArray, error) {
+	if strings.TrimSpace(inlineValues) == "" {
+		if err := AssertExpectedCount(0, header.Length, "inline array items", options); err != nil {
+			return nil, err
+		}
+		return toon.JsonArray{}, nil
+	}
+
+	values, err := ParseDelimitedValues(inlineValues, header.Delimiter)
+	if err != nil {
+		return nil, err
+	}
+
+	primitives, err := MapRowValuesToPrimitives(values)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := AssertExpectedCount(len(primitives), header.Length, "inline array items", options); err != nil {
+		return nil, err
+	}
+
+	// Convert []JsonPrimitive to JsonArray
+	result := make(toon.JsonArray, len(primitives))
+	for i, p := range primitives {
+		result[i] = p
+	}
+
+	return result, nil
+}
+
+// Placeholders - will be implemented in subsequent commits
+func decodeTabularArray(
+	header *toon.ArrayHeaderInfo,
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (toon.JsonArray, error) {
+	return nil, fmt.Errorf("decodeTabularArray not yet implemented")
+}
+
+func decodeListArray(
+	header *toon.ArrayHeaderInfo,
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (toon.JsonArray, error) {
+	return nil, fmt.Errorf("decodeListArray not yet implemented")
 }

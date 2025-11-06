@@ -56,11 +56,101 @@ func isKeyValueLine(line *toon.ParsedLine) bool {
 	return strings.ContainsRune(content, toon.Colon)
 }
 
-// Placeholder functions - will be implemented in subsequent commits
+// decodeObject decodes a TOON object from the cursor at the specified depth.
 func decodeObject(cursor *LineCursor, baseDepth int, options *toon.DecodeOptions) (toon.JsonObject, error) {
-	return nil, fmt.Errorf("decodeObject not yet implemented")
+	obj := make(toon.JsonObject)
+
+	// Detect the actual depth of the first field (may differ from baseDepth in nested structures)
+	var computedDepth *int
+
+	for !cursor.AtEnd() {
+		line := cursor.Peek()
+		if line == nil || line.Depth < baseDepth {
+			break
+		}
+
+		if computedDepth == nil && line.Depth >= baseDepth {
+			depth := line.Depth
+			computedDepth = &depth
+		}
+
+		if line.Depth == *computedDepth {
+			key, value, err := decodeKeyValuePair(line, cursor, *computedDepth, options)
+			if err != nil {
+				return nil, err
+			}
+			obj[key] = value
+		} else {
+			// Different depth (shallower or deeper) - stop object parsing
+			break
+		}
+	}
+
+	return obj, nil
 }
 
+// decodeKeyValue parses a key-value line and returns the key, value, and the depth for following fields.
+func decodeKeyValue(
+	content string,
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (key string, value toon.JsonValue, followDepth int, err error) {
+	// Check for array header first (before parsing key)
+	arrayHeader, inlineValues, parseErr := ParseArrayHeaderLine(content, toon.DefaultDelimiter)
+	if parseErr == nil && arrayHeader != nil && arrayHeader.Key != "" {
+		val, arrErr := decodeArrayFromHeader(arrayHeader, inlineValues, cursor, baseDepth, options)
+		if arrErr != nil {
+			return "", nil, 0, arrErr
+		}
+		// After an array, subsequent fields are at baseDepth + 1 (where array content is)
+		return arrayHeader.Key, val, baseDepth + 1, nil
+	}
+
+	// Regular key-value pair
+	parsedKey, end, keyErr := ParseKeyToken(content, 0)
+	if keyErr != nil {
+		return "", nil, 0, keyErr
+	}
+
+	runes := []rune(content)
+	rest := strings.TrimSpace(string(runes[end:]))
+
+	// No value after colon - expect nested object or empty
+	if rest == "" {
+		nextLine := cursor.Peek()
+		if nextLine != nil && nextLine.Depth > baseDepth {
+			nested, nestedErr := decodeObject(cursor, baseDepth+1, options)
+			if nestedErr != nil {
+				return "", nil, 0, nestedErr
+			}
+			return parsedKey, nested, baseDepth + 1, nil
+		}
+		// Empty object
+		return parsedKey, make(toon.JsonObject), baseDepth + 1, nil
+	}
+
+	// Inline primitive value
+	primValue, primErr := ParsePrimitiveToken(rest)
+	if primErr != nil {
+		return "", nil, 0, primErr
+	}
+	return parsedKey, primValue, baseDepth + 1, nil
+}
+
+// decodeKeyValuePair decodes a single key-value pair from a line.
+func decodeKeyValuePair(
+	line *toon.ParsedLine,
+	cursor *LineCursor,
+	baseDepth int,
+	options *toon.DecodeOptions,
+) (key string, value toon.JsonValue, err error) {
+	cursor.Advance()
+	key, value, _, err = decodeKeyValue(line.Content, cursor, baseDepth, options)
+	return key, value, err
+}
+
+// Placeholder - will be implemented in next commit
 func decodeArrayFromHeader(
 	header *toon.ArrayHeaderInfo,
 	inlineValues string,

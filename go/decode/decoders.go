@@ -208,14 +208,89 @@ func decodeInlinePrimitiveArray(
 	return result, nil
 }
 
-// Placeholders - will be implemented in subsequent commits
+// decodeTabularArray decodes a tabular array with fields like items[2]{id,name,price}:
 func decodeTabularArray(
 	header *toon.ArrayHeaderInfo,
 	cursor *LineCursor,
 	baseDepth int,
 	options *toon.DecodeOptions,
 ) (toon.JsonArray, error) {
-	return nil, fmt.Errorf("decodeTabularArray not yet implemented")
+	objects := make([]toon.JsonObject, 0, header.Length)
+	rowDepth := baseDepth + 1
+
+	// Track line range for blank line validation
+	var startLine, endLine int
+
+	for !cursor.AtEnd() && len(objects) < header.Length {
+		line := cursor.Peek()
+		if line == nil || line.Depth < rowDepth {
+			break
+		}
+
+		if line.Depth == rowDepth {
+			// Track first and last row line numbers
+			if len(objects) == 0 {
+				startLine = line.LineNumber
+			}
+			endLine = line.LineNumber
+
+			cursor.Advance()
+			values, err := ParseDelimitedValues(line.Content, header.Delimiter)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := AssertExpectedCount(len(values), len(header.Fields), "tabular row values", options); err != nil {
+				return nil, err
+			}
+
+			primitives, err := MapRowValuesToPrimitives(values)
+			if err != nil {
+				return nil, err
+			}
+
+			obj := make(toon.JsonObject)
+			for i := 0; i < len(header.Fields); i++ {
+				obj[header.Fields[i]] = primitives[i]
+			}
+
+			objects = append(objects, obj)
+		} else {
+			break
+		}
+	}
+
+	if err := AssertExpectedCount(len(objects), header.Length, "tabular rows", options); err != nil {
+		return nil, err
+	}
+
+	// In strict mode, check for blank lines inside the array
+	if options.Strict && len(objects) > 0 {
+		if err := ValidateNoBlankLinesInRange(
+			startLine,
+			endLine,
+			cursor.GetBlankLines(),
+			options.Strict,
+			"tabular array",
+		); err != nil {
+			return nil, err
+		}
+	}
+
+	// In strict mode, check for extra rows
+	if options.Strict {
+		if err := ValidateNoExtraTabularRows(cursor, rowDepth, header); err != nil {
+			return nil, err
+		}
+	}
+
+	// Convert []JsonObject to JsonArray
+	result := make(toon.JsonArray, len(objects))
+	for i, obj := range objects {
+		result[i] = obj
+	}
+
+	return result, nil
 }
 
 func decodeListArray(

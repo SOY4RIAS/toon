@@ -1,0 +1,29 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+    "ghcr.io/bartventer/arch-devcontainer-features/go:1": {
+      "goVersion": "latest"
+    }
+  },
+  "containerEnv": {
+    "GOPATH": "/go"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go"
+      ],
+      "settings": {
+        "go.gopath": "/go",
+        "go.toolsGopath": "/go",
+        "[go]": {
+          "editor.formatOnSave": true
+        },
+        "gopls": {
+          "staticcheck": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "mkdir -p /go && go env -w GOPATH /go && go install golang.org/x/tools/gopls@latest && go install github.com/go-delve/delve/cmd/dlv@latest"
+}

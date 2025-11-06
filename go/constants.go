@@ -17,6 +17,12 @@ const (
 	CloseBrace   = '}'
 )
 
+// List item markers
+const (
+	ListItemMarker = '-'
+	ListItemPrefix = "- "
+)
+
 // Literal constants
 const (
 	TrueLiteral  = "true"

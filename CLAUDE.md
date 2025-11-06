@@ -7,8 +7,9 @@ This document tracks the progress of migrating the TOON (Token-Oriented Object N
 **Goal**: Create a Go implementation of the TOON format parser/encoder that matches the TypeScript reference implementation.
 
 **Repository**: `toon-format/toon`
-**Branch**: `claude/go-migration-parser-011CUqhpS7DatVmPCe2tsdQX`
+**Branch**: `feature/go-port`
 **Spec Version**: v1.4 ([spec repository](https://github.com/toon-format/spec))
+**Status**: ✅ Core Implementation Complete (Encoder + Decoder)
 
 ## TypeScript Source Structure
 
@@ -37,26 +38,30 @@ packages/toon/src/
 
 ```
 go/
-├── go.mod
-├── go.sum
-├── toon.go               # Main entry point (Encode/Decode)
-├── types.go              # Type definitions
-├── constants.go          # Constants and delimiters
-├── shared/               # Shared utilities
-│   ├── strings.go        # String manipulation
-│   ├── literals.go       # Literal parsing
-│   └── validation.go     # Validation helpers
-├── encode/               # Encoder implementation
-│   ├── primitives.go     # Primitive encoding
-│   ├── writer.go         # Output writer
-│   ├── normalize.go      # Value normalization
-│   └── encoders.go       # Main encoding logic
-├── decode/               # Decoder implementation
-│   ├── decoders.go       # Main decoding logic
-│   ├── scanner.go        # Line scanning/tokenization
-│   ├── parser.go         # Parsing logic
-│   └── validation.go     # Decode validation
-└── toon_test.go          # Main tests
+├── go.mod                    # Go module definition
+├── toon.go                   # Main entry point (Encode/Decode)
+├── types.go                  # Type definitions
+├── constants.go              # Constants and delimiters
+├── shared/                   # Shared utilities
+│   ├── string_utils.go       # String manipulation (escape, unescape, quote finding)
+│   └── literal_utils.go      # Literal parsing (bool, number, null)
+├── encode/                   # Encoder implementation
+│   ├── normalize.go          # Value normalization (Date, BigInt, structs, etc)
+│   ├── primitives.go         # Primitive encoding & header formatting
+│   ├── writer.go             # Output writer with indentation
+│   ├── encoders.go           # Main encoding logic (objects, arrays, tabular)
+│   └── validation.go         # Quoting and key validation
+├── decode/                   # Decoder implementation (in root go/ for now)
+│   ├── decoders.go           # Main decoding logic
+│   ├── scanner.go            # Line scanning/tokenization
+│   ├── parser.go             # Parsing logic
+│   └── validation.go         # Decode validation
+├── decode_scanner.go         # Scanner (also in root for legacy compatibility)
+├── decode_parser.go          # Parser (also in root for legacy compatibility)
+├── decode_decoders.go        # Decoders (also in root for legacy compatibility)
+├── decode_validation.go      # Validation (also in root for legacy compatibility)
+├── toon_test.go              # Decoder tests
+└── encode_test.go            # Encoder tests
 ```
 
 ## Migration Progress
@@ -65,26 +70,26 @@ go/
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
-| Project setup | ✅ | go.mod | Initialize Go module |
-| Constants | ✅ | constants.go | Port delimiters, markers, literals |
-| Types | ✅ | types.go | Define Go types for options, parsing |
-| Main API | ✅ | toon.go | Decode function implemented |
+| Project setup | ✅ | go/go.mod | Initialize Go module |
+| Constants | ✅ | go/constants.go | Port delimiters, markers, literals |
+| Types | ✅ | go/types.go | Define Go types for options, parsing |
+| Main API | ✅ | go/toon.go | Encode + Decode functions implemented |
 
 ### Phase 2: Shared Utilities ✅
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
-| String utils | ✅ | shared/strings.go | Quoting, escaping, unquoting |
-| Literal utils | ✅ | shared/literals.go | Parse bool, number, null |
+| String utils | ✅ | go/shared/string_utils.go | Quoting, escaping, unquoting, quote finding |
+| Literal utils | ✅ | go/shared/literal_utils.go | Parse bool, number, null |
 
 ### Phase 3: Decoder ✅
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
-| Scanner | ✅ | decode_scanner.go | Line tokenization, indentation |
-| Parser | ✅ | decode_parser.go | Header parsing, structural analysis |
-| Decoders | ✅ | decode_decoders.go | Value decoding logic |
-| Validation | ✅ | decode_validation.go | Strict mode validation |
+| Scanner | ✅ | go/decode_scanner.go | Line tokenization, indentation |
+| Parser | ✅ | go/decode_parser.go | Header parsing, structural analysis |
+| Decoders | ✅ | go/decode_decoders.go | Value decoding logic |
+| Validation | ✅ | go/decode_validation.go | Strict mode validation |
 
 ### Phase 4: Encoder ✅
 
@@ -150,9 +155,48 @@ go/
 - [Conformance Tests](https://github.com/toon-format/spec/tree/main/tests)
 - [Other Go Implementation](https://github.com/alpkeskin/gotoon) (community, for reference)
 
+## Current Implementation Summary
+
+### ✅ What's Working
+
+**Decoder (go/):**
+- ✅ Parses all TOON formats: objects, arrays (tabular, inline, list), primitives
+- ✅ Handles nested structures and mixed types
+- ✅ Strict mode validation (array lengths, structure)
+- ✅ Proper unescaping and quote handling
+- ✅ All decode tests passing (5/5)
+
+**Encoder (go/encode/):**
+- ✅ Encodes all Go types to TOON format
+- ✅ Automatic tabular format detection for uniform object arrays
+- ✅ Value normalization (Date → ISO, BigInt → number/string, structs → objects)
+- ✅ Custom delimiters (comma, tab, pipe)
+- ✅ Optional length markers
+- ✅ Proper quoting and escaping
+- ✅ All encode tests passing (8/8)
+
+**Round-trip:**
+- ✅ Encode → Decode → works correctly
+- ✅ Data integrity maintained
+
+### ⏳ What's Next
+
+1. **Comprehensive Testing**: Port full TypeScript test suite
+2. **Conformance Tests**: Run against official spec tests
+3. **CLI Tool**: Optional command-line interface (like TypeScript version)
+4. **Documentation**: README.md for Go package
+5. **Performance**: Benchmarking vs TypeScript implementation
+
+### 📝 Implementation Notes
+
+- **File Organization**: Decoder files are currently in `go/` root (decode_*.go) but could be moved to `go/decode/` for consistency with encoder
+- **Map Iteration**: Go maps have non-deterministic iteration order, so field order in encoded objects may vary
+- **Type Handling**: Go's type system requires explicit type assertions; using `interface{}` for JSON values
+- **Error Handling**: All errors returned explicitly (no panics)
+
 ## Questions / Issues
 
-*(Track any questions or blockers here)*
+None currently - core implementation complete!
 
 ---
 

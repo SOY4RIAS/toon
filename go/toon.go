@@ -4,6 +4,8 @@
 package toon
 
 import (
+	"fmt"
+
 	"github.com/toon-format/toon/go/encode"
 )
 
@@ -28,11 +30,25 @@ import (
 //	//     map[string]interface{}{"id": 2.0, "name": "Bob"},
 //	//   },
 //	// }
-func Decode(input string, options *DecodeOptions) (JsonValue, error) {
+func Decode(input string, options *DecodeOptions) (result JsonValue, err error) {
+	// Recover from panics and convert them to errors
+	defer func() {
+		if r := recover(); r != nil {
+			switch v := r.(type) {
+			case error:
+				err = v
+			case string:
+				err = fmt.Errorf("decode error: %s", v)
+			default:
+				err = fmt.Errorf("decode error: %v", r)
+			}
+		}
+	}()
+
 	resolvedOptions := resolveDecodeOptions(options)
-	scanResult, err := ToParsedLines(input, resolvedOptions.Indent, resolvedOptions.Strict)
-	if err != nil {
-		return nil, err
+	scanResult, scanErr := ToParsedLines(input, resolvedOptions.Indent, resolvedOptions.Strict)
+	if scanErr != nil {
+		return nil, scanErr
 	}
 
 	if len(scanResult.Lines) == 0 {

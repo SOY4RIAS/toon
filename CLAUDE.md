@@ -101,14 +101,15 @@ go/
 | Encoders | ✅ | go/encode/encoders.go | Main encoding logic |
 | Validation | ✅ | go/encode/validation.go | Quoting and key validation |
 
-### Phase 5: Testing ⏳
+### Phase 5: Testing ✅
 
 | Component | Status | File | Notes |
 |-----------|--------|------|-------|
 | Decode tests | ✅ | go/toon_test.go | Basic decode tests passing |
 | Encode tests | ✅ | go/encode_test.go | Basic encode tests passing |
 | Round-trip tests | ✅ | go/encode_test.go | Encode/decode round-trip tests passing |
-| Conformance tests | ⏳ | - | Use spec conformance tests |
+| Conformance tests | ✅ | go/conformance_test.go | 97.0% compliance (314/323 tests passing) |
+| Conformance docs | ✅ | go/CONFORMANCE.md | Detailed results and deviation analysis |
 
 ### Phase 6: CLI (Optional) ⏳
 
@@ -125,8 +126,9 @@ go/
 - [x] Write basic decoder tests (all passing)
 - [x] Implement encoder (normalize → primitives → writer → encoders)
 - [x] Write basic encoder tests (all passing)
-- [ ] Port comprehensive unit tests from TypeScript
-- [ ] Run conformance tests from spec repository
+- [x] Run conformance tests from spec repository (97.0% compliance)
+- [x] Document conformance test results and deviations
+- [ ] Port comprehensive unit tests from TypeScript (optional - conformance tests cover most cases)
 - [ ] Add CLI tool (optional)
 - [ ] Documentation and README for Go package
 - [ ] Benchmark against TypeScript implementation
@@ -164,7 +166,9 @@ go/
 - ✅ Handles nested structures and mixed types
 - ✅ Strict mode validation (array lengths, structure)
 - ✅ Proper unescaping and quote handling
-- ✅ All decode tests passing (5/5)
+- ✅ Error recovery (panics converted to errors)
+- ✅ Basic unit tests passing (5/5)
+- ✅ Conformance tests: 184/185 passing (99.5% compliance)
 
 **Encoder (go/encode/):**
 - ✅ Encodes all Go types to TOON format
@@ -172,20 +176,28 @@ go/
 - ✅ Value normalization (Date → ISO, BigInt → number/string, structs → objects)
 - ✅ Custom delimiters (comma, tab, pipe)
 - ✅ Optional length markers
-- ✅ Proper quoting and escaping
-- ✅ All encode tests passing (8/8)
+- ✅ Proper quoting and escaping (including single hyphen)
+- ✅ Basic unit tests passing (8/8)
+- ✅ Conformance tests: 130/138 passing (94.2% compliance)
 
 **Round-trip:**
 - ✅ Encode → Decode → works correctly
 - ✅ Data integrity maintained
 
+**Conformance Testing:**
+- ✅ Test harness implemented (go/conformance_test.go)
+- ✅ 323 official spec tests loaded from toon-format/spec
+- ✅ 314/323 tests passing (97.0% overall compliance)
+- ✅ Detailed documentation (go/CONFORMANCE.md)
+
 ### ⏳ What's Next
 
-1. **Comprehensive Testing**: Port full TypeScript test suite
-2. **Conformance Tests**: Run against official spec tests
-3. **CLI Tool**: Optional command-line interface (like TypeScript version)
-4. **Documentation**: README.md for Go package
-5. **Performance**: Benchmarking vs TypeScript implementation
+1. **CLI Tool**: Optional command-line interface (like TypeScript version)
+2. **Documentation**: README.md for Go package with usage examples
+3. **Performance**: Benchmarking vs TypeScript implementation
+4. **Minor Fixes**: Address conformance test deviations (optional)
+   - Tab rejection at line start (1 test)
+   - Field order preservation (8 tests - Go map limitation)
 
 ### 📝 Implementation Notes
 

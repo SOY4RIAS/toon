@@ -14,7 +14,7 @@ func ParseArrayHeaderLine(content string, defaultDelimiter Delimiter) (*ArrayHea
 	trimmed := strings.TrimLeft(content, " ")
 
 	// Find the bracket segment, accounting for quoted keys
-	bracketStart := -1
+	var bracketStart int
 
 	if strings.HasPrefix(trimmed, "\"") {
 		closingQuoteIndex := shared.FindClosingQuote(trimmed, 0)

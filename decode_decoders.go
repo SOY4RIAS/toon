@@ -53,7 +53,7 @@ func decodeObject(cursor *LineCursor, baseDepth int, options ResolvedDecodeOptio
 	obj := make(JsonObject)
 
 	// Detect the actual depth of the first field
-	var computedDepth int = -1
+	computedDepth := -1
 
 	for !cursor.AtEnd() {
 		line := cursor.Peek()
@@ -131,7 +131,7 @@ func decodeArrayFromHeader(header *ArrayHeaderInfo, inlineValues string, cursor 
 	}
 
 	// Tabular array
-	if header.Fields != nil && len(header.Fields) > 0 {
+	if len(header.Fields) > 0 {
 		return decodeTabularArray(header, cursor, baseDepth, options)
 	}
 
@@ -165,7 +165,7 @@ func decodeListArray(header *ArrayHeaderInfo, cursor *LineCursor, baseDepth int,
 	items := JsonArray{}
 	itemDepth := baseDepth + 1
 
-	var startLine, endLine int = -1, -1
+	startLine, endLine := -1, -1
 
 	for !cursor.AtEnd() && len(items) < header.Length {
 		line := cursor.Peek()
@@ -224,7 +224,7 @@ func decodeTabularArray(header *ArrayHeaderInfo, cursor *LineCursor, baseDepth i
 	objects := []JsonObject{}
 	rowDepth := baseDepth + 1
 
-	var startLine, endLine int = -1, -1
+	startLine, endLine := -1, -1
 
 	for !cursor.AtEnd() && len(objects) < header.Length {
 		line := cursor.Peek()

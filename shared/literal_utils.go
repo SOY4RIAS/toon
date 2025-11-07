@@ -29,12 +29,11 @@ func IsNumericLiteral(token string) bool {
 	}
 
 	// Handle negative numbers
-	checkToken := token
 	if strings.HasPrefix(token, "-") {
 		if len(token) == 1 {
 			return false
 		}
-		checkToken = token[1:]
+		checkToken := token[1:]
 		// Check for leading zeros after minus sign
 		if len(checkToken) > 1 && checkToken[0] == '0' && checkToken[1] != '.' {
 			return false

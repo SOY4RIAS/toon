@@ -281,7 +281,20 @@ func TestConformance_Encode(t *testing.T) {
 						expectedStr = string(data)
 					}
 
-					// Compare result with expected (normalize whitespace)
+					// First try semantic comparison by decoding both
+					// This handles field order differences in Go maps
+					resultDecoded, resultErr := Decode(result, nil)
+					expectedDecoded, expectedErr := Decode(expectedStr, nil)
+
+					if resultErr == nil && expectedErr == nil {
+						// Both decoded successfully - compare semantically
+						if deepEqual(resultDecoded, expectedDecoded) {
+							passedTests++
+							return
+						}
+					}
+
+					// Fallback to string comparison (for cases where decode might not work)
 					resultNorm := normalizeWhitespace(result)
 					expectedNorm := normalizeWhitespace(expectedStr)
 

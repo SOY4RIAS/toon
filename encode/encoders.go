@@ -2,6 +2,7 @@ package encode
 
 import (
 	"fmt"
+	"sort"
 )
 
 const listItemMarker = '-'
@@ -32,7 +33,15 @@ func EncodeValue(value interface{}, options ResolvedEncodeOptions) string {
 
 // EncodeObject encodes a JSON object
 func EncodeObject(obj map[string]interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
-	for key, value := range obj {
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(obj))
+	for key := range obj {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		value := obj[key]
 		EncodeKeyValuePair(key, value, writer, depth, options)
 	}
 }
@@ -153,11 +162,12 @@ func ExtractTabularHeader(arr []interface{}) []string {
 		return nil
 	}
 
-	// Extract keys from first object
+	// Extract keys from first object and sort for deterministic output
 	var header []string
 	for key := range firstObj {
 		header = append(header, key)
 	}
+	sort.Strings(header)
 
 	// Check if this is a valid tabular array
 	if IsTabularArray(arr, header) {
@@ -254,11 +264,12 @@ func EncodeObjectAsListItem(obj map[string]interface{}, writer *LineWriter, dept
 		return
 	}
 
-	// Get keys (order may vary, but we need to process them consistently)
+	// Get keys and sort for deterministic output
 	var keys []string
 	for key := range obj {
 		keys = append(keys, key)
 	}
+	sort.Strings(keys)
 
 	// First key-value on the same line as "- "
 	firstKey := keys[0]

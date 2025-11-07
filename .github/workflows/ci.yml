@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+      - feature/go-port
   pull_request:
     branches:
       - main
+      - feature/go-port
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,41 +25,65 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 1
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-go@v5
         with:
-          node-version: 24
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
+          go-version: '1.21'
+          cache-dependency-path: go.sum
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
         with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run lint
+          version: latest
+          args: --timeout=5m
 
-  typecheck:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 1
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+          submodules: recursive
+      - uses: actions/setup-go@v5
         with:
-          node-version: 24
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
-      - uses: actions/cache@v4
+          go-version: '1.21'
+          cache-dependency-path: go.sum
+      - name: Run Go tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+      - name: Display coverage
+        run: go tool cover -func=coverage.out
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
         with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run test:types
+          fetch-depth: 1
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: go.sum
+      - name: Build
+        run: go build -v ./...
+      - name: Verify formatting
+        run: |
+          if [ "$(gofmt -s -l . | grep -v ts-version | wc -l)" -gt 0 ]; then
+            echo "The following files are not formatted:"
+            gofmt -s -l . | grep -v ts-version
+            exit 1
+          fi
+
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          submodules: recursive
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache-dependency-path: go.sum
+      - name: Run conformance tests
+        run: go test -v -run TestConformance

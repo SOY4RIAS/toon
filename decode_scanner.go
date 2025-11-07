@@ -92,7 +92,10 @@ func (c *LineCursor) HasMoreAtDepth(targetDepth int) bool {
 
 // ToParsedLines parses the source string into lines with metadata
 func ToParsedLines(source string, indentSize int, strict bool) (*ScanResult, error) {
-	source = strings.TrimSpace(source)
+	// Trim trailing whitespace and leading/trailing newlines
+	// But preserve leading spaces/tabs on first line for validation
+	source = strings.TrimRight(source, " \t\n\r")
+	source = strings.TrimLeft(source, "\n\r")
 	if source == "" {
 		return &ScanResult{Lines: []ParsedLine{}, BlankLines: []BlankLineInfo{}}, nil
 	}

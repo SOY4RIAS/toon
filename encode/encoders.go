@@ -1,191 +1,202 @@
 package encode
 
 import (
-	"reflect"
+	"fmt"
+	"sort"
 )
 
 const listItemMarker = '-'
 
-// EncodeValue encodes a normalized JsonValue to TOON format.
-func EncodeValue(value interface{}, indent int, delimiter rune, lengthMarker bool) string {
+// ResolvedEncodeOptions contains resolved encoding options
+type ResolvedEncodeOptions struct {
+	Indent       int
+	Delimiter    rune
+	LengthMarker rune
+}
+
+// EncodeValue encodes a normalized JSON value to TOON format
+func EncodeValue(value interface{}, options ResolvedEncodeOptions) string {
 	if IsJsonPrimitive(value) {
-		return EncodePrimitive(value, delimiter)
+		return EncodePrimitive(value, options.Delimiter)
 	}
 
-	writer := NewLineWriter(indent)
+	writer := NewLineWriter(options.Indent)
 
 	if IsJsonArray(value) {
-		arr := toSlice(value)
-		encodeArray("", arr, writer, 0, delimiter, lengthMarker)
+		EncodeArray("", value.([]interface{}), writer, 0, options)
 	} else if IsJsonObject(value) {
-		obj := toMap(value)
-		encodeObject(obj, writer, 0, delimiter, lengthMarker)
+		EncodeObject(value.(map[string]interface{}), writer, 0, options)
 	}
 
 	return writer.String()
 }
 
-// encodeObject encodes a JSON object.
-func encodeObject(value map[string]interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	for key, val := range value {
-		encodeKeyValuePair(key, val, writer, depth, delimiter, lengthMarker)
+// EncodeObject encodes a JSON object
+func EncodeObject(obj map[string]interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(obj))
+	for key := range obj {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		value := obj[key]
+		EncodeKeyValuePair(key, value, writer, depth, options)
 	}
 }
 
-// encodeKeyValuePair encodes a single key-value pair.
-func encodeKeyValuePair(key string, value interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
+// EncodeKeyValuePair encodes a key-value pair
+func EncodeKeyValuePair(key string, value interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
 	encodedKey := EncodeKey(key)
 
 	if IsJsonPrimitive(value) {
-		writer.Push(depth, encodedKey+": "+EncodePrimitive(value, delimiter))
+		line := fmt.Sprintf("%s: %s", encodedKey, EncodePrimitive(value, options.Delimiter))
+		writer.Push(depth, line)
 	} else if IsJsonArray(value) {
-		arr := toSlice(value)
-		encodeArray(key, arr, writer, depth, delimiter, lengthMarker)
+		EncodeArray(key, value.([]interface{}), writer, depth, options)
 	} else if IsJsonObject(value) {
-		obj := toMap(value)
+		obj := value.(map[string]interface{})
 		if len(obj) == 0 {
 			// Empty object
 			writer.Push(depth, encodedKey+":")
 		} else {
 			writer.Push(depth, encodedKey+":")
-			encodeObject(obj, writer, depth+1, delimiter, lengthMarker)
+			EncodeObject(obj, writer, depth+1, options)
 		}
 	}
 }
 
-// encodeArray encodes a JSON array.
-func encodeArray(key string, value []interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	if len(value) == 0 {
-		opts := &HeaderOptions{Key: key, Delimiter: delimiter, LengthMarker: lengthMarker}
-		header := FormatHeader(0, opts)
+// EncodeArray encodes a JSON array
+func EncodeArray(key string, arr []interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	if len(arr) == 0 {
+		header := FormatHeader(0, FormatHeaderOptions{
+			Key:          key,
+			Delimiter:    options.Delimiter,
+			LengthMarker: options.LengthMarker,
+		})
 		writer.Push(depth, header)
 		return
 	}
 
-	// Primitive array
-	if IsArrayOfPrimitives(value) {
-		formatted := encodeInlineArrayLine(value, delimiter, key, lengthMarker)
+	// Primitive array - inline format
+	if IsArrayOfPrimitives(arr) {
+		formatted := EncodeInlineArrayLine(arr, options.Delimiter, key, options.LengthMarker)
 		writer.Push(depth, formatted)
 		return
 	}
 
-	// Array of arrays (all primitives)
-	if IsArrayOfArrays(value) {
+	// Array of arrays (all primitives) - list format
+	if IsArrayOfArrays(arr) {
 		allPrimitiveArrays := true
-		for _, item := range value {
-			arr := toSlice(item)
-			if !IsArrayOfPrimitives(arr) {
+		for _, item := range arr {
+			if !IsArrayOfPrimitives(item) {
 				allPrimitiveArrays = false
 				break
 			}
 		}
 		if allPrimitiveArrays {
-			encodeArrayOfArraysAsListItems(key, value, writer, depth, delimiter, lengthMarker)
+			EncodeArrayOfArraysAsListItems(key, arr, writer, depth, options)
 			return
 		}
 	}
 
-	// Array of objects
-	if IsArrayOfObjects(value) {
-		objects := make([]map[string]interface{}, len(value))
-		for i, item := range value {
-			objects[i] = toMap(item)
-		}
-
-		header := extractTabularHeader(objects)
+	// Array of objects - try tabular format
+	if IsArrayOfObjects(arr) {
+		header := ExtractTabularHeader(arr)
 		if header != nil {
-			encodeArrayOfObjectsAsTabular(key, objects, header, writer, depth, delimiter, lengthMarker)
+			EncodeArrayOfObjectsAsTabular(key, arr, header, writer, depth, options)
 		} else {
-			encodeMixedArrayAsListItems(key, value, writer, depth, delimiter, lengthMarker)
+			EncodeMixedArrayAsListItems(key, arr, writer, depth, options)
 		}
 		return
 	}
 
-	// Mixed array: fallback to expanded format
-	encodeMixedArrayAsListItems(key, value, writer, depth, delimiter, lengthMarker)
+	// Mixed array - list format
+	EncodeMixedArrayAsListItems(key, arr, writer, depth, options)
 }
 
-// encodeArrayOfArraysAsListItems encodes an array of primitive arrays as list items.
-func encodeArrayOfArraysAsListItems(prefix string, values []interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	opts := &HeaderOptions{Key: prefix, Delimiter: delimiter, LengthMarker: lengthMarker}
-	header := FormatHeader(len(values), opts)
+// EncodeInlineArrayLine encodes a primitive array as an inline format
+// Example: tags[3]: a,b,c
+func EncodeInlineArrayLine(values []interface{}, delimiter rune, key string, lengthMarker rune) string {
+	header := FormatHeader(len(values), FormatHeaderOptions{
+		Key:          key,
+		Delimiter:    delimiter,
+		LengthMarker: lengthMarker,
+	})
+
+	if len(values) == 0 {
+		return header
+	}
+
+	joinedValue := EncodeAndJoinPrimitives(values, delimiter)
+	return header + " " + joinedValue
+}
+
+// EncodeArrayOfArraysAsListItems encodes an array of primitive arrays as list items
+func EncodeArrayOfArraysAsListItems(key string, arrays []interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	header := FormatHeader(len(arrays), FormatHeaderOptions{
+		Key:          key,
+		Delimiter:    options.Delimiter,
+		LengthMarker: options.LengthMarker,
+	})
 	writer.Push(depth, header)
 
-	for _, item := range values {
-		arr := toSlice(item)
-		if IsArrayOfPrimitives(arr) {
-			inline := encodeInlineArrayLine(arr, delimiter, "", lengthMarker)
+	for _, item := range arrays {
+		if arr, ok := item.([]interface{}); ok && IsArrayOfPrimitives(arr) {
+			inline := EncodeInlineArrayLine(arr, options.Delimiter, "", options.LengthMarker)
 			writer.PushListItem(depth+1, inline)
 		}
 	}
 }
 
-// encodeInlineArrayLine encodes a primitive array on a single line.
-func encodeInlineArrayLine(values []interface{}, delimiter rune, prefix string, lengthMarker bool) string {
-	opts := &HeaderOptions{Key: prefix, Delimiter: delimiter, LengthMarker: lengthMarker}
-	header := FormatHeader(len(values), opts)
-	joinedValue := EncodeAndJoinPrimitives(values, delimiter)
+// ExtractTabularHeader checks if an array of objects can use tabular format
+// Returns the field names if all objects have the same primitive fields, nil otherwise
+func ExtractTabularHeader(arr []interface{}) []string {
+	if len(arr) == 0 {
+		return nil
+	}
 
-	// Only add space if there are values
-	if len(values) == 0 {
+	firstObj, ok := arr[0].(map[string]interface{})
+	if !ok || len(firstObj) == 0 {
+		return nil
+	}
+
+	// Extract keys from first object and sort for deterministic output
+	var header []string
+	for key := range firstObj {
+		header = append(header, key)
+	}
+	sort.Strings(header)
+
+	// Check if this is a valid tabular array
+	if IsTabularArray(arr, header) {
 		return header
-	}
-	return header + " " + joinedValue
-}
-
-// encodeArrayOfObjectsAsTabular encodes an array of objects in tabular format.
-func encodeArrayOfObjectsAsTabular(prefix string, rows []map[string]interface{}, header []string, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	opts := &HeaderOptions{
-		Key:          prefix,
-		Fields:       header,
-		Delimiter:    delimiter,
-		LengthMarker: lengthMarker,
-	}
-	formattedHeader := FormatHeader(len(rows), opts)
-	writer.Push(depth, formattedHeader)
-
-	writeTabularRows(rows, header, writer, depth+1, delimiter)
-}
-
-// extractTabularHeader extracts field names if the array can be encoded in tabular format.
-func extractTabularHeader(rows []map[string]interface{}) []string {
-	if len(rows) == 0 {
-		return nil
-	}
-
-	firstRow := rows[0]
-	if len(firstRow) == 0 {
-		return nil
-	}
-
-	// Get keys from first row
-	firstKeys := make([]string, 0, len(firstRow))
-	for key := range firstRow {
-		firstKeys = append(firstKeys, key)
-	}
-
-	if isTabularArray(rows, firstKeys) {
-		return firstKeys
 	}
 
 	return nil
 }
 
-// isTabularArray checks if an array of objects can be encoded in tabular format.
-func isTabularArray(rows []map[string]interface{}, header []string) bool {
-	for _, row := range rows {
-		// All objects must have the same keys (but order can differ)
-		if len(row) != len(header) {
+// IsTabularArray checks if all objects in the array have the same primitive fields
+func IsTabularArray(arr []interface{}, header []string) bool {
+	for _, item := range arr {
+		obj, ok := item.(map[string]interface{})
+		if !ok {
 			return false
 		}
 
-		// Check that all header keys exist in the row and all values are primitives
+		// Check that object has exactly the same keys
+		if len(obj) != len(header) {
+			return false
+		}
+
+		// Check that all header keys exist and all values are primitives
 		for _, key := range header {
-			val, exists := row[key]
+			value, exists := obj[key]
 			if !exists {
 				return false
 			}
-			if !IsJsonPrimitive(val) {
+			if !IsJsonPrimitive(value) {
 				return false
 			}
 		}
@@ -194,41 +205,71 @@ func isTabularArray(rows []map[string]interface{}, header []string) bool {
 	return true
 }
 
-// writeTabularRows writes the data rows for a tabular array.
-func writeTabularRows(rows []map[string]interface{}, header []string, writer *LineWriter, depth int, delimiter rune) {
+// EncodeArrayOfObjectsAsTabular encodes an array of objects in tabular format
+func EncodeArrayOfObjectsAsTabular(key string, rows []interface{}, header []string, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	formattedHeader := FormatHeader(len(rows), FormatHeaderOptions{
+		Key:          key,
+		Fields:       header,
+		Delimiter:    options.Delimiter,
+		LengthMarker: options.LengthMarker,
+	})
+	writer.Push(depth, formattedHeader)
+
+	WriteTabularRows(rows, header, writer, depth+1, options)
+}
+
+// WriteTabularRows writes the data rows for a tabular array
+func WriteTabularRows(rows []interface{}, header []string, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
 	for _, row := range rows {
+		obj := row.(map[string]interface{})
 		values := make([]interface{}, len(header))
 		for i, key := range header {
-			values[i] = row[key]
+			values[i] = obj[key]
 		}
-		joinedValue := EncodeAndJoinPrimitives(values, delimiter)
+		joinedValue := EncodeAndJoinPrimitives(values, options.Delimiter)
 		writer.Push(depth, joinedValue)
 	}
 }
 
-// encodeMixedArrayAsListItems encodes a mixed array as list items.
-func encodeMixedArrayAsListItems(prefix string, items []interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	opts := &HeaderOptions{Key: prefix, Delimiter: delimiter, LengthMarker: lengthMarker}
-	header := FormatHeader(len(items), opts)
+// EncodeMixedArrayAsListItems encodes a mixed array as list items
+func EncodeMixedArrayAsListItems(key string, items []interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	header := FormatHeader(len(items), FormatHeaderOptions{
+		Key:          key,
+		Delimiter:    options.Delimiter,
+		LengthMarker: options.LengthMarker,
+	})
 	writer.Push(depth, header)
 
 	for _, item := range items {
-		encodeListItemValue(item, writer, depth+1, delimiter, lengthMarker)
+		EncodeListItemValue(item, writer, depth+1, options)
 	}
 }
 
-// encodeObjectAsListItem encodes an object as a list item.
-func encodeObjectAsListItem(obj map[string]interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
+// EncodeListItemValue encodes a single list item value
+func EncodeListItemValue(value interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
+	if IsJsonPrimitive(value) {
+		writer.PushListItem(depth, EncodePrimitive(value, options.Delimiter))
+	} else if arr, ok := value.([]interface{}); ok && IsArrayOfPrimitives(arr) {
+		inline := EncodeInlineArrayLine(arr, options.Delimiter, "", options.LengthMarker)
+		writer.PushListItem(depth, inline)
+	} else if IsJsonObject(value) {
+		EncodeObjectAsListItem(value.(map[string]interface{}), writer, depth, options)
+	}
+}
+
+// EncodeObjectAsListItem encodes an object as a list item
+func EncodeObjectAsListItem(obj map[string]interface{}, writer *LineWriter, depth int, options ResolvedEncodeOptions) {
 	if len(obj) == 0 {
 		writer.Push(depth, string(listItemMarker))
 		return
 	}
 
-	// Get keys (order matters for consistency)
-	keys := make([]string, 0, len(obj))
+	// Get keys and sort for deterministic output
+	var keys []string
 	for key := range obj {
 		keys = append(keys, key)
 	}
+	sort.Strings(keys)
 
 	// First key-value on the same line as "- "
 	firstKey := keys[0]
@@ -236,126 +277,58 @@ func encodeObjectAsListItem(obj map[string]interface{}, writer *LineWriter, dept
 	firstValue := obj[firstKey]
 
 	if IsJsonPrimitive(firstValue) {
-		writer.PushListItem(depth, encodedKey+": "+EncodePrimitive(firstValue, delimiter))
-	} else if IsJsonArray(firstValue) {
-		arr := toSlice(firstValue)
+		line := fmt.Sprintf("%s: %s", encodedKey, EncodePrimitive(firstValue, options.Delimiter))
+		writer.PushListItem(depth, line)
+	} else if arr, ok := firstValue.([]interface{}); ok {
 		if IsArrayOfPrimitives(arr) {
 			// Inline format for primitive arrays
-			formatted := encodeInlineArrayLine(arr, delimiter, firstKey, lengthMarker)
+			formatted := EncodeInlineArrayLine(arr, options.Delimiter, firstKey, options.LengthMarker)
 			writer.PushListItem(depth, formatted)
 		} else if IsArrayOfObjects(arr) {
-			objects := make([]map[string]interface{}, len(arr))
-			for i, item := range arr {
-				objects[i] = toMap(item)
-			}
-
 			// Check if array of objects can use tabular format
-			header := extractTabularHeader(objects)
+			header := ExtractTabularHeader(arr)
 			if header != nil {
 				// Tabular format for uniform arrays of objects
-				opts := &HeaderOptions{
+				formattedHeader := FormatHeader(len(arr), FormatHeaderOptions{
 					Key:          firstKey,
 					Fields:       header,
-					Delimiter:    delimiter,
-					LengthMarker: lengthMarker,
-				}
-				formattedHeader := FormatHeader(len(arr), opts)
+					Delimiter:    options.Delimiter,
+					LengthMarker: options.LengthMarker,
+				})
 				writer.PushListItem(depth, formattedHeader)
-				writeTabularRows(objects, header, writer, depth+1, delimiter)
+				WriteTabularRows(arr, header, writer, depth+1, options)
 			} else {
 				// Fall back to list format for non-uniform arrays of objects
-				writer.PushListItem(depth, encodedKey+"["+string(rune(len(arr)))+"]:")
+				header := fmt.Sprintf("%s[%d]:", encodedKey, len(arr))
+				writer.PushListItem(depth, header)
 				for _, item := range arr {
-					encodeObjectAsListItem(toMap(item), writer, depth+1, delimiter, lengthMarker)
+					if IsJsonObject(item) {
+						EncodeObjectAsListItem(item.(map[string]interface{}), writer, depth+1, options)
+					}
 				}
 			}
 		} else {
 			// Complex arrays on separate lines (array of arrays, etc.)
-			writer.PushListItem(depth, encodedKey+"["+string(rune(len(arr)))+"]:")
+			header := fmt.Sprintf("%s[%d]:", encodedKey, len(arr))
+			writer.PushListItem(depth, header)
 
 			// Encode array contents at depth + 1
 			for _, item := range arr {
-				encodeListItemValue(item, writer, depth+1, delimiter, lengthMarker)
+				EncodeListItemValue(item, writer, depth+1, options)
 			}
 		}
-	} else if IsJsonObject(firstValue) {
-		nestedObj := toMap(firstValue)
+	} else if nestedObj, ok := firstValue.(map[string]interface{}); ok {
 		if len(nestedObj) == 0 {
 			writer.PushListItem(depth, encodedKey+":")
 		} else {
 			writer.PushListItem(depth, encodedKey+":")
-			encodeObject(nestedObj, writer, depth+2, delimiter, lengthMarker)
+			EncodeObject(nestedObj, writer, depth+2, options)
 		}
 	}
 
 	// Remaining keys on indented lines
 	for i := 1; i < len(keys); i++ {
 		key := keys[i]
-		encodeKeyValuePair(key, obj[key], writer, depth+1, delimiter, lengthMarker)
+		EncodeKeyValuePair(key, obj[key], writer, depth+1, options)
 	}
-}
-
-// encodeListItemValue encodes a value as a list item.
-func encodeListItemValue(value interface{}, writer *LineWriter, depth int, delimiter rune, lengthMarker bool) {
-	if IsJsonPrimitive(value) {
-		writer.PushListItem(depth, EncodePrimitive(value, delimiter))
-	} else if IsJsonArray(value) {
-		arr := toSlice(value)
-		if IsArrayOfPrimitives(arr) {
-			inline := encodeInlineArrayLine(arr, delimiter, "", lengthMarker)
-			writer.PushListItem(depth, inline)
-		}
-	} else if IsJsonObject(value) {
-		obj := toMap(value)
-		encodeObjectAsListItem(obj, writer, depth, delimiter, lengthMarker)
-	}
-}
-
-// Helper functions to convert interface{} to concrete types
-
-func toSlice(value interface{}) []interface{} {
-	if value == nil {
-		return nil
-	}
-
-	v := reflect.ValueOf(value)
-	if v.Kind() != reflect.Slice && v.Kind() != reflect.Array {
-		return nil
-	}
-
-	result := make([]interface{}, v.Len())
-	for i := 0; i < v.Len(); i++ {
-		result[i] = v.Index(i).Interface()
-	}
-	return result
-}
-
-func toMap(value interface{}) map[string]interface{} {
-	if value == nil {
-		return nil
-	}
-
-	if m, ok := value.(map[string]interface{}); ok {
-		return m
-	}
-
-	v := reflect.ValueOf(value)
-	if v.Kind() != reflect.Map {
-		return nil
-	}
-
-	result := make(map[string]interface{})
-	iter := v.MapRange()
-	for iter.Next() {
-		key := iter.Key()
-		val := iter.Value()
-		keyStr := ""
-		if key.Kind() == reflect.String {
-			keyStr = key.String()
-		} else {
-			keyStr = key.String() // Fallback
-		}
-		result[keyStr] = val.Interface()
-	}
-	return result
 }

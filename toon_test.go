@@ -1,7 +1,6 @@
 package toon
 
 import (
-	"encoding/json"
 	"testing"
 )
 
@@ -169,10 +168,4 @@ func TestDecodeListArray(t *testing.T) {
 	if items[2] != "text" {
 		t.Errorf("Expected items[2]=text, got %v", items[2])
 	}
-}
-
-// Helper function to pretty print JSON for debugging
-func prettyJSON(v interface{}) string {
-	b, _ := json.MarshalIndent(v, "", "  ")
-	return string(b)
 }

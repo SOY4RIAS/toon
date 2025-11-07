@@ -1,123 +1,120 @@
 package toon
 
-// JsonValue represents any valid JSON value in Go.
-// This is the root type for all TOON encode/decode operations.
+// JsonValue represents any valid JSON value
 type JsonValue interface{}
 
-// JsonPrimitive represents JSON primitive types.
+// JsonPrimitive can be string, number, bool, or null
 type JsonPrimitive interface{}
 
-// JsonObject represents a JSON object as a Go map.
-type JsonObject map[string]interface{}
+// JsonObject is a map representing a JSON object
+type JsonObject map[string]JsonValue
 
-// JsonArray represents a JSON array as a Go slice.
-type JsonArray []interface{}
+// JsonArray is a slice representing a JSON array
+type JsonArray []JsonValue
 
-// Delimiter represents the character used to separate values in arrays and tabular rows.
-type Delimiter rune
-
-const (
-	// DelimiterComma is the default comma delimiter.
-	DelimiterComma Delimiter = ','
-	// DelimiterTab is the tab character delimiter.
-	DelimiterTab Delimiter = '\t'
-	// DelimiterPipe is the pipe character delimiter.
-	DelimiterPipe Delimiter = '|'
-)
-
-// EncodeOptions configures TOON encoding behavior.
+// EncodeOptions contains options for encoding
 type EncodeOptions struct {
-	// Indent specifies the number of spaces per indentation level.
-	// Default: 2
+	// Indent is the number of spaces per indentation level (default: 2)
 	Indent int
 
-	// Delimiter specifies the character to use for separating values in arrays and tabular rows.
-	// Valid values: DelimiterComma (','), DelimiterTab ('\t'), DelimiterPipe ('|')
-	// Default: DelimiterComma
+	// Delimiter to use for tabular array rows and inline primitive arrays (default: comma)
 	Delimiter Delimiter
 
-	// LengthMarker when true, prefixes array lengths with '#' (e.g., [#3] instead of [3]).
-	// Default: false
-	LengthMarker bool
+	// LengthMarker is an optional marker to prefix array lengths in headers
+	// When set to '#', arrays render as [#N] instead of [N]
+	LengthMarker rune // '#' or 0 for false
 }
 
-// ResolvedEncodeOptions represents fully resolved encoding options with all defaults applied.
-type ResolvedEncodeOptions struct {
-	Indent       int
-	Delimiter    Delimiter
-	LengthMarker bool
-}
-
-// DecodeOptions configures TOON decoding behavior.
+// DecodeOptions contains options for decoding
 type DecodeOptions struct {
-	// Indent specifies the expected number of spaces per indentation level.
-	// Default: 2
+	// Indent is the number of spaces per indentation level (default: 2)
 	Indent int
 
-	// Strict when true, enforces strict validation of array lengths and tabular row counts.
-	// Default: true
+	// Strict enables strict validation of array lengths and tabular row counts (default: true)
 	Strict bool
 }
 
-// ResolvedDecodeOptions represents fully resolved decoding options with all defaults applied.
+// ResolvedEncodeOptions contains resolved encode options with defaults applied
+type ResolvedEncodeOptions struct {
+	Indent       int
+	Delimiter    Delimiter
+	LengthMarker rune
+}
+
+// ResolvedDecodeOptions contains resolved decode options with defaults applied
 type ResolvedDecodeOptions struct {
 	Indent int
 	Strict bool
 }
 
-// ArrayHeaderInfo contains parsed information from an array header line.
+// ArrayHeaderInfo contains parsed array header information
 type ArrayHeaderInfo struct {
-	// Key is the property name (empty for root arrays).
-	Key string
-
-	// Length is the declared array length from the header.
-	Length int
-
-	// Delimiter is the delimiter character detected from the header.
-	Delimiter Delimiter
-
-	// Fields contains field names for tabular arrays (nil for non-tabular).
-	Fields []string
-
-	// HasLengthMarker indicates if the '#' prefix was present in the length.
-	HasLengthMarker bool
+	Key             string    // Optional key name
+	Length          int       // Array length
+	Delimiter       Delimiter // Delimiter used
+	Fields          []string  // Optional field names for tabular arrays
+	HasLengthMarker bool      // Whether the length marker (#) is present
 }
 
-// ParsedLine represents a single parsed line from the input.
+// ParsedLine represents a parsed line with metadata
 type ParsedLine struct {
-	// Raw is the original line content.
-	Raw string
-
-	// Depth is the nesting depth (0-based).
-	Depth int
-
-	// Indent is the number of leading spaces.
-	Indent int
-
-	// Content is the line content after removing indentation.
-	Content string
-
-	// LineNumber is the 1-based line number in the original input.
-	LineNumber int
+	Raw        string // Original line text
+	Depth      int    // Indentation depth level
+	Indent     int    // Number of spaces
+	Content    string // Line content without leading spaces
+	LineNumber int    // 1-based line number
 }
 
-// BlankLineInfo contains information about blank lines encountered during parsing.
+// BlankLineInfo contains information about blank lines
 type BlankLineInfo struct {
-	// LineNumber is the 1-based line number.
-	LineNumber int
-
-	// Indent is the indentation level of the blank line.
-	Indent int
-
-	// Depth is the nesting depth.
-	Depth int
+	LineNumber int // 1-based line number
+	Indent     int // Number of spaces
+	Depth      int // Indentation depth level
 }
 
-// ScanResult contains the result of scanning/tokenizing TOON input.
-type ScanResult struct {
-	// Lines contains all non-blank parsed lines.
-	Lines []ParsedLine
+// resolveEncodeOptions applies defaults to encode options
+func resolveEncodeOptions(opts *EncodeOptions) ResolvedEncodeOptions {
+	if opts == nil {
+		return ResolvedEncodeOptions{
+			Indent:       2,
+			Delimiter:    DefaultDelimiter,
+			LengthMarker: 0,
+		}
+	}
 
-	// BlankLines contains information about blank lines.
-	BlankLines []BlankLineInfo
+	indent := opts.Indent
+	if indent == 0 {
+		indent = 2
+	}
+
+	delimiter := opts.Delimiter
+	if delimiter == 0 {
+		delimiter = DefaultDelimiter
+	}
+
+	return ResolvedEncodeOptions{
+		Indent:       indent,
+		Delimiter:    delimiter,
+		LengthMarker: opts.LengthMarker,
+	}
+}
+
+// resolveDecodeOptions applies defaults to decode options
+func resolveDecodeOptions(opts *DecodeOptions) ResolvedDecodeOptions {
+	if opts == nil {
+		return ResolvedDecodeOptions{
+			Indent: 2,
+			Strict: true,
+		}
+	}
+
+	indent := opts.Indent
+	if indent == 0 {
+		indent = 2
+	}
+
+	return ResolvedDecodeOptions{
+		Indent: indent,
+		Strict: opts.Strict,
+	}
 }

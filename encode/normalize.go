@@ -2,27 +2,47 @@ package encode
 
 import (
 	"math"
+	"math/big"
 	"reflect"
 	"time"
 )
 
-// NormalizeValue converts any Go value to a JSON-compatible value.
-// This handles special cases like time.Time, NaN, Infinity, etc.
+// NormalizeValue converts a Go value to a JSON-compatible value.
+// It handles various Go types and normalizes them to JSON primitives, objects, or arrays.
+//
+// Type conversions:
+// - nil → null
+// - bool, string → unchanged
+// - int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64 → float64
+// - float32, float64 → float64 (with special handling for -0, NaN, Infinity)
+// - *big.Int → number (if safe) or string
+// - time.Time → ISO 8601 string
+// - []T → array
+// - map[string]T → object
+// - struct → object (exported fields only)
+// - pointer → dereference and normalize
+// - function, channel, complex → null
 func NormalizeValue(value interface{}) interface{} {
-	// Handle nil
 	if value == nil {
 		return nil
 	}
 
-	// Use reflection to handle different types
 	v := reflect.ValueOf(value)
 
-	switch v.Kind() {
-	case reflect.String:
-		return value
+	// Handle pointers by dereferencing
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil
+		}
+		return NormalizeValue(v.Elem().Interface())
+	}
 
+	switch v.Kind() {
 	case reflect.Bool:
-		return value
+		return v.Bool()
+
+	case reflect.String:
+		return v.String()
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return float64(v.Int())
@@ -32,30 +52,22 @@ func NormalizeValue(value interface{}) interface{} {
 
 	case reflect.Float32, reflect.Float64:
 		f := v.Float()
-		// Handle -0
+		// Canonicalize -0 to 0
 		if f == 0 && math.Signbit(f) {
-			return 0.0
+			return float64(0)
 		}
-		// Handle NaN and Infinity
+		// Convert NaN and Infinity to null
 		if math.IsNaN(f) || math.IsInf(f, 0) {
 			return nil
 		}
 		return f
 
-	case reflect.Ptr:
-		if v.IsNil() {
-			return nil
-		}
-		// Dereference pointer
-		return NormalizeValue(v.Elem().Interface())
-
 	case reflect.Slice, reflect.Array:
-		// Handle []byte specially (convert to string)
+		// Handle []byte specially (don't convert to array of numbers)
 		if v.Type().Elem().Kind() == reflect.Uint8 {
 			return string(v.Bytes())
 		}
 
-		// Convert to []interface{}
 		result := make([]interface{}, v.Len())
 		for i := 0; i < v.Len(); i++ {
 			result[i] = NormalizeValue(v.Index(i).Interface())
@@ -63,102 +75,113 @@ func NormalizeValue(value interface{}) interface{} {
 		return result
 
 	case reflect.Map:
-		// Convert to map[string]interface{}
+		// Only support map[string]T
+		if v.Type().Key().Kind() != reflect.String {
+			return nil
+		}
+
 		result := make(map[string]interface{})
 		iter := v.MapRange()
 		for iter.Next() {
-			key := iter.Key()
-			val := iter.Value()
-			// Convert key to string
-			keyStr := ""
-			switch key.Kind() {
-			case reflect.String:
-				keyStr = key.String()
-			default:
-				keyStr = key.String() // Use String() method for other types
-			}
-			result[keyStr] = NormalizeValue(val.Interface())
+			key := iter.Key().String()
+			result[key] = NormalizeValue(iter.Value().Interface())
 		}
 		return result
 
 	case reflect.Struct:
-		// Special case: time.Time
+		// Special handling for time.Time
 		if t, ok := value.(time.Time); ok {
 			return t.Format(time.RFC3339Nano)
 		}
 
-		// Convert struct to map
+		// Special handling for *big.Int
+		if bigInt, ok := value.(*big.Int); ok {
+			// Try to convert to float64 if within safe integer range
+			if bigInt.IsInt64() {
+				i64 := bigInt.Int64()
+				if i64 >= -9007199254740991 && i64 <= 9007199254740991 { // Number.MIN_SAFE_INTEGER to MAX_SAFE_INTEGER
+					return float64(i64)
+				}
+			}
+			// Otherwise convert to string
+			return bigInt.String()
+		}
+
+		// Convert struct to map (only exported fields)
 		result := make(map[string]interface{})
 		t := v.Type()
 		for i := 0; i < v.NumField(); i++ {
 			field := t.Field(i)
-			// Skip unexported fields
-			if !field.IsExported() {
-				continue
-			}
-
-			// Get field name (check for json tag first)
-			fieldName := field.Name
-			if tag := field.Tag.Get("json"); tag != "" && tag != "-" {
-				// Simple tag parsing (just get the name part before comma)
-				for commaIdx := 0; commaIdx < len(tag); commaIdx++ {
-					if tag[commaIdx] == ',' {
-						fieldName = tag[:commaIdx]
-						break
+			// Only include exported fields
+			if field.PkgPath == "" {
+				fieldValue := v.Field(i)
+				// Use json tag if present, otherwise use field name
+				name := field.Name
+				if jsonTag := field.Tag.Get("json"); jsonTag != "" && jsonTag != "-" {
+					// Simple tag parsing (doesn't handle all json tag options)
+					for idx := 0; idx < len(jsonTag); idx++ {
+						if jsonTag[idx] == ',' {
+							name = jsonTag[:idx]
+							break
+						}
+					}
+					if name == "" {
+						name = jsonTag
 					}
 				}
-				if fieldName == field.Name {
-					// No comma found, use entire tag
-					fieldName = tag
-				}
+				result[name] = NormalizeValue(fieldValue.Interface())
 			}
-
-			fieldValue := v.Field(i)
-			result[fieldName] = NormalizeValue(fieldValue.Interface())
 		}
 		return result
 
+	case reflect.Func, reflect.Chan, reflect.Complex64, reflect.Complex128, reflect.UnsafePointer:
+		return nil
+
 	default:
-		// For unsupported types (func, chan, etc.), return null
 		return nil
 	}
 }
 
-// IsJsonPrimitive checks if a value is a JSON primitive (string, number, boolean, or null).
+// IsJsonPrimitive checks if a value is a JSON primitive (null, bool, number, string)
 func IsJsonPrimitive(value interface{}) bool {
 	if value == nil {
 		return true
 	}
 
 	switch value.(type) {
-	case string, bool, float64, float32, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case bool, float64, string:
 		return true
 	default:
 		return false
 	}
 }
 
-// IsJsonArray checks if a value is a JSON array (slice).
+// IsJsonArray checks if a value is a JSON array (slice)
 func IsJsonArray(value interface{}) bool {
 	if value == nil {
 		return false
 	}
 	v := reflect.ValueOf(value)
-	return v.Kind() == reflect.Slice || v.Kind() == reflect.Array
+	return v.Kind() == reflect.Slice
 }
 
-// IsJsonObject checks if a value is a JSON object (map).
+// IsJsonObject checks if a value is a JSON object (map[string]interface{})
 func IsJsonObject(value interface{}) bool {
 	if value == nil {
 		return false
 	}
-	v := reflect.ValueOf(value)
-	return v.Kind() == reflect.Map
+	_, ok := value.(map[string]interface{})
+	return ok
 }
 
-// IsArrayOfPrimitives checks if a slice contains only primitive values.
-func IsArrayOfPrimitives(value []interface{}) bool {
-	for _, item := range value {
+// IsArrayOfPrimitives checks if a value is an array of primitives
+func IsArrayOfPrimitives(value interface{}) bool {
+	if !IsJsonArray(value) {
+		return false
+	}
+
+	arr := value.([]interface{})
+	for _, item := range arr {
 		if !IsJsonPrimitive(item) {
 			return false
 		}
@@ -166,9 +189,14 @@ func IsArrayOfPrimitives(value []interface{}) bool {
 	return true
 }
 
-// IsArrayOfArrays checks if a slice contains only arrays.
-func IsArrayOfArrays(value []interface{}) bool {
-	for _, item := range value {
+// IsArrayOfArrays checks if a value is an array of arrays
+func IsArrayOfArrays(value interface{}) bool {
+	if !IsJsonArray(value) {
+		return false
+	}
+
+	arr := value.([]interface{})
+	for _, item := range arr {
 		if !IsJsonArray(item) {
 			return false
 		}
@@ -176,9 +204,14 @@ func IsArrayOfArrays(value []interface{}) bool {
 	return true
 }
 
-// IsArrayOfObjects checks if a slice contains only objects (maps).
-func IsArrayOfObjects(value []interface{}) bool {
-	for _, item := range value {
+// IsArrayOfObjects checks if a value is an array of objects
+func IsArrayOfObjects(value interface{}) bool {
+	if !IsJsonArray(value) {
+		return false
+	}
+
+	arr := value.([]interface{})
+	for _, item := range arr {
 		if !IsJsonObject(item) {
 			return false
 		}

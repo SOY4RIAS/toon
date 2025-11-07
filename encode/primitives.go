@@ -2,27 +2,21 @@ package encode
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
-	"github.com/SOY4RIAS/toon/shared"
+	"github.com/soy4rias/toongo/shared"
 )
 
 const (
-	nullLiteral   = "null"
-	doubleQuote   = '"'
-	comma         = ','
-	defaultDelim  = comma
-	hash          = '#'
-	openBracket   = '['
-	closeBracket  = ']'
-	openBrace     = '{'
-	closeBrace    = '}'
-	colon         = ':'
+	nullLiteral  = "null"
+	trueLiteral  = "true"
+	falseLiteral = "false"
+	doubleQuote  = '"'
+	comma        = ','
 )
 
-// EncodePrimitive encodes a primitive JSON value to TOON format.
+// EncodePrimitive encodes a JSON primitive value (null, bool, number, string)
 func EncodePrimitive(value interface{}, delimiter rune) string {
 	if value == nil {
 		return nullLiteral
@@ -30,165 +24,110 @@ func EncodePrimitive(value interface{}, delimiter rune) string {
 
 	switch v := value.(type) {
 	case bool:
-		return strconv.FormatBool(v)
+		if v {
+			return trueLiteral
+		}
+		return falseLiteral
 
 	case float64:
 		return formatNumber(v)
-
-	case float32:
-		return formatNumber(float64(v))
-
-	case int:
-		return strconv.Itoa(v)
-
-	case int64:
-		return strconv.FormatInt(v, 10)
-
-	case int32:
-		return strconv.FormatInt(int64(v), 10)
-
-	case int16:
-		return strconv.FormatInt(int64(v), 10)
-
-	case int8:
-		return strconv.FormatInt(int64(v), 10)
-
-	case uint:
-		return strconv.FormatUint(uint64(v), 10)
-
-	case uint64:
-		return strconv.FormatUint(v, 10)
-
-	case uint32:
-		return strconv.FormatUint(uint64(v), 10)
-
-	case uint16:
-		return strconv.FormatUint(uint64(v), 10)
-
-	case uint8:
-		return strconv.FormatUint(uint64(v), 10)
 
 	case string:
 		return EncodeStringLiteral(v, delimiter)
 
 	default:
-		// Fallback: try to encode as string
-		return EncodeStringLiteral(fmt.Sprint(v), delimiter)
-	}
-}
-
-// formatNumber formats a number without scientific notation.
-func formatNumber(f float64) string {
-	// Handle special cases
-	if math.IsNaN(f) || math.IsInf(f, 0) {
+		// Shouldn't happen if value is already normalized, but handle it
 		return nullLiteral
 	}
-
-	// Handle -0
-	if f == 0 && math.Signbit(f) {
-		return "0"
-	}
-
-	// Format without scientific notation
-	s := strconv.FormatFloat(f, 'f', -1, 64)
-
-	// Remove trailing zeros after decimal point
-	if strings.Contains(s, ".") {
-		s = strings.TrimRight(s, "0")
-		s = strings.TrimRight(s, ".")
-	}
-
-	return s
 }
 
-// EncodeStringLiteral encodes a string value, adding quotes if necessary.
+// EncodeStringLiteral encodes a string, quoting it if necessary
 func EncodeStringLiteral(value string, delimiter rune) string {
-	if shared.IsSafeUnquoted(value, delimiter) {
+	if IsSafeUnquoted(value, delimiter) {
 		return value
 	}
 
-	return fmt.Sprintf("%c%s%c", doubleQuote, shared.EscapeString(value), doubleQuote)
+	return string(doubleQuote) + shared.EscapeString(value) + string(doubleQuote)
 }
 
-// EncodeKey encodes an object key, adding quotes if necessary.
+// EncodeKey encodes an object key, quoting it if necessary
 func EncodeKey(key string) string {
-	if shared.IsValidUnquotedKey(key) {
+	if IsValidUnquotedKey(key) {
 		return key
 	}
 
-	return fmt.Sprintf("%c%s%c", doubleQuote, shared.EscapeString(key), doubleQuote)
+	return string(doubleQuote) + shared.EscapeString(key) + string(doubleQuote)
 }
 
-// EncodeAndJoinPrimitives encodes and joins multiple primitive values with a delimiter.
+// EncodeAndJoinPrimitives encodes an array of primitives and joins them with the delimiter
 func EncodeAndJoinPrimitives(values []interface{}, delimiter rune) string {
-	if len(values) == 0 {
-		return ""
+	encoded := make([]string, len(values))
+	for i, v := range values {
+		encoded[i] = EncodePrimitive(v, delimiter)
 	}
-
-	var parts []string
-	for _, v := range values {
-		parts = append(parts, EncodePrimitive(v, delimiter))
-	}
-
-	return strings.Join(parts, string(delimiter))
+	return strings.Join(encoded, string(delimiter))
 }
 
-// HeaderOptions configures the format of an array header.
-type HeaderOptions struct {
-	Key          string
-	Fields       []string
-	Delimiter    rune
-	LengthMarker bool
+// FormatHeaderOptions contains options for formatting array headers
+type FormatHeaderOptions struct {
+	Key          string   // Optional key name
+	Fields       []string // Optional field names for tabular arrays
+	Delimiter    rune     // Delimiter character
+	LengthMarker rune     // Optional length marker ('#' or 0)
 }
 
-// FormatHeader formats an array header line.
-func FormatHeader(length int, opts *HeaderOptions) string {
-	var sb strings.Builder
+// FormatHeader formats an array header line
+// Examples:
+//   - items[3]:
+//   - items[#3]:
+//   - items[3|]:
+//   - items[3]{id,name,price}:
+func FormatHeader(length int, opts FormatHeaderOptions) string {
+	var header strings.Builder
 
 	// Add key if present
-	if opts != nil && opts.Key != "" {
-		sb.WriteString(EncodeKey(opts.Key))
+	if opts.Key != "" {
+		header.WriteString(EncodeKey(opts.Key))
 	}
 
-	// Determine delimiter
-	delim := comma
-	if opts != nil && opts.Delimiter != 0 {
-		delim = opts.Delimiter
+	// Add array length with optional marker and delimiter
+	header.WriteRune('[')
+	if opts.LengthMarker != 0 {
+		header.WriteRune(opts.LengthMarker)
+	}
+	header.WriteString(strconv.Itoa(length))
+
+	// Only include delimiter if it's not the default (comma)
+	if opts.Delimiter != 0 && opts.Delimiter != comma {
+		header.WriteRune(opts.Delimiter)
 	}
 
-	// Build array length part: [N] or [#N] with optional delimiter
-	sb.WriteRune(openBracket)
-
-	// Add length marker if requested
-	if opts != nil && opts.LengthMarker {
-		sb.WriteRune(hash)
-	}
-
-	// Add length
-	sb.WriteString(strconv.Itoa(length))
-
-	// Add delimiter to header if not comma (default)
-	if delim != defaultDelim {
-		sb.WriteRune(delim)
-	}
-
-	sb.WriteRune(closeBracket)
+	header.WriteRune(']')
 
 	// Add fields if present (for tabular arrays)
-	if opts != nil && len(opts.Fields) > 0 {
-		sb.WriteRune(openBrace)
-
+	if len(opts.Fields) > 0 {
+		header.WriteRune('{')
 		encodedFields := make([]string, len(opts.Fields))
 		for i, field := range opts.Fields {
 			encodedFields[i] = EncodeKey(field)
 		}
-
-		sb.WriteString(strings.Join(encodedFields, string(delim)))
-		sb.WriteRune(closeBrace)
+		header.WriteString(strings.Join(encodedFields, string(opts.Delimiter)))
+		header.WriteRune('}')
 	}
 
-	// Add colon
-	sb.WriteRune(colon)
+	header.WriteRune(':')
 
-	return sb.String()
+	return header.String()
+}
+
+// formatNumber formats a float64 as a string without scientific notation
+func formatNumber(f float64) string {
+	// For whole numbers, format without decimal point
+	if f == float64(int64(f)) {
+		return fmt.Sprintf("%.0f", f)
+	}
+	// For decimal numbers, use %g but ensure we don't get scientific notation
+	// Use %f with enough precision, then trim trailing zeros
+	s := strconv.FormatFloat(f, 'f', -1, 64)
+	return s
 }

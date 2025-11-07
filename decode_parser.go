@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/toon-format/toon/go/shared"
+	"github.com/soy4rias/toongo/shared"
 )
 
 // ParseArrayHeaderLine parses an array header line

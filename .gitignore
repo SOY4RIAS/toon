@@ -1,6 +1,40 @@
-dist
-node_modules
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+coverage.html
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS specific files
 .DS_Store
-.env
-packages/toon/test/fixtures/*.json
-packages/toon/test/fixtures/*.toon
+Thumbs.db
+
+# Build output
+/bin/
+/dist/
+/build/
+
+# Temporary files
+*.tmp
+*.log

@@ -4,11 +4,12 @@
 
 Migrating TOON (Token-Oriented Object Notation) from TypeScript to Go.
 
-**Current Phase**: Conformance Testing Complete ✅
+**Current Phase**: Project Reorganization Complete ✅
 **Branch**: `feature/go-port`
 **Started**: 2025-11-06
 **Core Completed**: 2025-11-06
 **Conformance Testing Completed**: 2025-11-06
+**Reorganization Completed**: 2025-11-07
 
 ## Progress Summary
 
@@ -44,6 +45,18 @@ Migrating TOON (Token-Oriented Object Notation) from TypeScript to Go.
   - Documentation (CONFORMANCE.md) - detailed results and deviation analysis
   - Error handling improvements (panic recovery in Decode)
   - Bug fixes (single hyphen quoting, strict mode defaults)
+- **Project Reorganization & Cleanup**:
+  - Moved all TypeScript code to `ts-version/` directory
+  - Moved Node.js config files (`.npmrc`, `.editorconfig`) to `ts-version/`
+  - Moved TypeScript-specific `.gitignore` to `ts-version/`
+  - Renamed `.gitignore.go` to `.gitignore` at root (Go-specific ignores)
+  - Kept `spec-tests/` at root (shared by both Go and TypeScript implementations)
+  - **Removed duplicate/broken Go code**: Deleted old implementations and broken subdirectories
+  - **Moved Go to root**: Go implementation moved from `go/` subdirectory to repository root
+  - **Removed alternative implementation**: Deleted `toon-go/` directory
+  - **Single primary codebase**: Go at root (`github.com/soy4rias/toongo`), TypeScript in `ts-version/`
+  - **Module renamed**: From `github.com/toon-format/toon` to `github.com/soy4rias/toongo`
+  - TypeScript reference implementation preserved in `ts-version/`
 
 ### ⏳ In Progress
 
@@ -57,9 +70,9 @@ None currently!
 
 ## Current Focus
 
-**Conformance testing complete!** ✅
+**Project reorganization complete!** ✅
 
-The Go implementation has achieved **97.0% compliance** with the official TOON specification (314/323 tests passing).
+The TypeScript implementation has been moved to `ts-version/` directory, separating it from the Go implementation. The Go implementation has achieved **97.0% compliance** with the official TOON specification (314/323 tests passing).
 
 **Test Results:**
 - Basic unit tests: 13/13 passing (100%)
@@ -96,9 +109,28 @@ None currently.
 ## Notes
 
 - Following TOON spec v1.4
-- Using TypeScript implementation as reference
-- Will validate against conformance tests from toon-format/spec
+- Go implementation (`github.com/soy4rias/toongo`) is the primary focus - located at repository root
+- TypeScript reference implementation located in `ts-version/` directory
+- Single unified codebase after cleanup (removed all duplicates and alternative implementations)
+- All code validated against conformance tests from toon-format/spec
+
+## Project Structure
+
+```
+/
+├── *.go                     # Primary Go implementation (97% conformance)
+├── encode/                  # Encoder subdirectory
+├── shared/                  # Shared utilities
+├── go.mod                   # Go module
+├── CONFORMANCE.md           # Conformance test results
+├── ts-version/              # TypeScript reference implementation
+│   ├── packages/            # TypeScript packages (cli, toon)
+│   ├── benchmarks/          # TypeScript benchmarks
+│   └── *.json, *.yaml       # TS configuration files
+├── spec-tests/              # Test fixtures (shared by both implementations)
+└── README.md, SPEC.md       # Documentation
+```
 
 ---
 
-Last updated: 2025-11-06
+Last updated: 2025-11-07

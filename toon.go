@@ -1,86 +1,95 @@
+// Package toon provides encoding and decoding for the TOON (Token-Oriented Object Notation) format.
+// TOON is a compact, human-readable serialization format designed for passing structured data
+// to Large Language Models with significantly reduced token usage.
 package toon
 
 import (
-	"github.com/SOY4RIAS/toon/decode"
-	"github.com/SOY4RIAS/toon/encode"
+	"fmt"
+
+	"github.com/soy4rias/toongo/encode"
 )
 
-// Encode converts a Go value to TOON format.
-// Returns the TOON-formatted string or an error if encoding fails.
-func Encode(value interface{}, opts *EncodeOptions) (string, error) {
-	// Normalize the value
-	normalized := encode.NormalizeValue(value)
+// Decode parses a TOON-formatted string and returns the decoded JSON value.
+//
+// The input string is parsed according to the TOON specification, with optional
+// validation and indentation settings.
+//
+// Options:
+//   - Indent: Number of spaces per indentation level (default: 2)
+//   - Strict: Enable strict validation of array lengths and structure (default: true)
+//
+// Example:
+//
+//	toon := `items[2]{id,name}:
+//	  1,Alice
+//	  2,Bob`
+//	value, err := Decode(toon, nil)
+//	// value = map[string]interface{}{
+//	//   "items": []interface{}{
+//	//     map[string]interface{}{"id": 1.0, "name": "Alice"},
+//	//     map[string]interface{}{"id": 2.0, "name": "Bob"},
+//	//   },
+//	// }
+func Decode(input string, options *DecodeOptions) (result JsonValue, err error) {
+	// Recover from panics and convert them to errors
+	defer func() {
+		if r := recover(); r != nil {
+			switch v := r.(type) {
+			case error:
+				err = v
+			case string:
+				err = fmt.Errorf("decode error: %s", v)
+			default:
+				err = fmt.Errorf("decode error: %v", r)
+			}
+		}
+	}()
 
-	// Resolve options
-	resolved := resolveEncodeOptions(opts)
-
-	// Encode the value
-	result := encode.EncodeValue(normalized, resolved.Indent, rune(resolved.Delimiter), resolved.LengthMarker)
-
-	return result, nil
-}
-
-// Decode parses a TOON-formatted string and returns the corresponding Go value.
-// Returns the decoded value or an error if parsing fails.
-func Decode(input string, opts *DecodeOptions) (interface{}, error) {
-	resolved := resolveDecodeOptions(opts)
-
-	// Scan the input into lines
-	scanResult, err := decode.ToParsedLines(input, resolved.Indent, resolved.Strict)
-	if err != nil {
-		return nil, err
+	resolvedOptions := resolveDecodeOptions(options)
+	scanResult, scanErr := ToParsedLines(input, resolvedOptions.Indent, resolvedOptions.Strict)
+	if scanErr != nil {
+		return nil, scanErr
 	}
 
 	if len(scanResult.Lines) == 0 {
-		return map[string]interface{}{}, nil
+		return make(JsonObject), nil
 	}
 
-	// Create cursor and decode
-	cursor := decode.NewLineCursor(scanResult.Lines, scanResult.BlankLines)
-	return decode.DecodeValueFromLines(cursor, resolved.Strict)
+	cursor := NewLineCursor(scanResult.Lines, scanResult.BlankLines)
+	return DecodeValueFromLines(cursor, resolvedOptions)
 }
 
-func resolveEncodeOptions(opts *EncodeOptions) *ResolvedEncodeOptions {
-	if opts == nil {
-		return &ResolvedEncodeOptions{
-			Indent:       DefaultIndent,
-			Delimiter:    DefaultDelimiter,
-			LengthMarker: false,
-		}
+// Encode converts a Go value to TOON format.
+//
+// The input value is first normalized to JSON-compatible types, then encoded
+// according to the TOON specification.
+//
+// Options:
+//   - Indent: Number of spaces per indentation level (default: 2)
+//   - Delimiter: Delimiter for array values (comma, tab, or pipe; default: comma)
+//   - LengthMarker: Optional '#' prefix for array lengths (default: none)
+//
+// Example:
+//
+//	data := map[string]interface{}{
+//		"items": []interface{}{
+//			map[string]interface{}{"id": 1, "name": "Alice"},
+//			map[string]interface{}{"id": 2, "name": "Bob"},
+//		},
+//	}
+//	toon, err := Encode(data, nil)
+//	// items[2]{id,name}:
+//	//   1,Alice
+//	//   2,Bob
+func Encode(input interface{}, options *EncodeOptions) (string, error) {
+	normalizedValue := encode.NormalizeValue(input)
+	resolvedOptions := resolveEncodeOptions(options)
+
+	encodeOpts := encode.ResolvedEncodeOptions{
+		Indent:       resolvedOptions.Indent,
+		Delimiter:    rune(resolvedOptions.Delimiter),
+		LengthMarker: resolvedOptions.LengthMarker,
 	}
 
-	indent := opts.Indent
-	if indent == 0 {
-		indent = DefaultIndent
-	}
-
-	delimiter := opts.Delimiter
-	if delimiter == 0 {
-		delimiter = DefaultDelimiter
-	}
-
-	return &ResolvedEncodeOptions{
-		Indent:       indent,
-		Delimiter:    delimiter,
-		LengthMarker: opts.LengthMarker,
-	}
-}
-
-func resolveDecodeOptions(opts *DecodeOptions) *ResolvedDecodeOptions {
-	if opts == nil {
-		return &ResolvedDecodeOptions{
-			Indent: DefaultIndent,
-			Strict: true,
-		}
-	}
-
-	indent := opts.Indent
-	if indent == 0 {
-		indent = DefaultIndent
-	}
-
-	return &ResolvedDecodeOptions{
-		Indent: indent,
-		Strict: opts.Strict,
-	}
+	return encode.EncodeValue(normalizedValue, encodeOpts), nil
 }

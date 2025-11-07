@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/toon-format/toon/go/shared"
+	"github.com/soy4rias/toongo/shared"
 )
 
 // DecodeValueFromLines decodes a value from parsed lines

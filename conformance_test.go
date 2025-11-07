@@ -100,11 +100,11 @@ func buildDecodeOptions(optMap map[string]interface{}) *DecodeOptions {
 
 // TestConformance_Decode runs all decode conformance tests
 func TestConformance_Decode(t *testing.T) {
-	fixturesDir := "../spec-tests/fixtures/decode"
+	fixturesDir := "spec-tests/fixtures/decode"
 
 	// Check if fixtures directory exists
 	if _, err := os.Stat(fixturesDir); os.IsNotExist(err) {
-		t.Skip("Conformance test fixtures not found. Run from go/ directory or download fixtures.")
+		t.Skip("Conformance test fixtures not found. Download fixtures from spec repository.")
 		return
 	}
 
@@ -202,11 +202,11 @@ func TestConformance_Decode(t *testing.T) {
 
 // TestConformance_Encode runs all encode conformance tests
 func TestConformance_Encode(t *testing.T) {
-	fixturesDir := "../spec-tests/fixtures/encode"
+	fixturesDir := "spec-tests/fixtures/encode"
 
 	// Check if fixtures directory exists
 	if _, err := os.Stat(fixturesDir); os.IsNotExist(err) {
-		t.Skip("Conformance test fixtures not found. Run from go/ directory or download fixtures.")
+		t.Skip("Conformance test fixtures not found. Download fixtures from spec repository.")
 		return
 	}
 

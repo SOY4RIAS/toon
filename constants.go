@@ -32,11 +32,11 @@ const (
 
 // Escape characters
 const (
-	Backslash       = '\\'
-	DoubleQuote     = '"'
-	Newline         = '\n'
-	CarriageReturn  = '\r'
-	Tab             = '\t'
+	Backslash      = '\\'
+	DoubleQuote    = '"'
+	Newline        = '\n'
+	CarriageReturn = '\r'
+	Tab            = '\t'
 )
 
 // Delimiter is a type for array/table delimiters

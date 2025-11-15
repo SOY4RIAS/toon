@@ -2,6 +2,8 @@
 
 This document reports the conformance test results for the Go implementation of TOON against the official specification tests from [toon-format/spec](https://github.com/toon-format/spec/tree/main/tests).
 
+> **Fork Notice**: This is a community fork providing a Go implementation of the TOON specification. It is not affiliated with or maintained by the original TOON creators.
+
 **Test Date**: 2025-11-07
 **Spec Version**: 1.4
 **Implementation**: Go (`github.com/soy4rias/toongo`)

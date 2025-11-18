@@ -67,9 +67,9 @@ jobs:
         run: go build -v ./...
       - name: Verify formatting
         run: |
-          if [ "$(gofmt -s -l . | grep -v ts-version | wc -l)" -gt 0 ]; then
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
             echo "The following files are not formatted:"
-            gofmt -s -l . | grep -v ts-version
+            gofmt -s -l .
             exit 1
           fi
 
